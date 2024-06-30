@@ -1,0 +1,33 @@
+ALG_NAME: "pqn_rnn"
+TOTAL_TIMESTEPS: 1e5
+TOTAL_TIMESTEPS_REAL: 1e5 # will be used for decay functions, in case you want to test for less timesteps and keep decays same
+NUM_ENVS: 32 # parallel environments
+MEMORY_WINDOW: 4 # steps of previous episode added in the rnn training horizon
+NUM_STEPS: 128 # steps per environment in each update
+EPS_START: 1.
+EPS_FINISH: 0.01
+EPS_DECAY: 0.1 # ratio of total updates
+NUM_MINIBATCHES: 16 # minibatches per epoch
+NUM_EPOCHS: 4 # minibatches per epoch
+NORM_INPUT: False
+HIDDEN_SIZE: 256
+NUM_LAYERS: 2
+NORM_TYPE: "layer_norm" # layer_norm or batch_norm
+LR: 0.001
+MAX_GRAD_NORM: 10
+LR_LINEAR_DECAY: False
+REW_SCALE: 1.
+GAMMA: 0.99
+LAMBDA: 0.95
+
+# env specific
+ENV_NAME: "MemoryChain-bsuite" # should work also for Acrobot-v1 but might need some tuning
+ENV_KWARGS:
+  memory_length: 100
+
+# evaluation
+TEST_DURING_TRAINING: True 
+TEST_INTERVAL: 0.05 # in terms of total updates
+TEST_NUM_ENVS: 128
+# TEST_NUM_STEPS: 128 # setup automatically with max env timesteps
+EPS_TEST: 0. # 0 for greedy policy

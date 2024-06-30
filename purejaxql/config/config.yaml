@@ -1,0 +1,18 @@
+# experiment params
+NUM_SEEDS: 1
+SEED: 0
+
+# if  hyperparameters tuning
+HYP_TUNE: False
+EXP_TIME_LIMIT: 100 # max in seconds
+
+# wandb params
+WANDB_MODE: "online"  # set to online to activate wandb
+ENTITY: "mttga"
+PROJECT: "purejaxql-release"
+alg:
+  WANDB_LOG_ALL_SEEDS: False
+
+# where to save the params (if None, will not save)
+SAVE_POLICY: False 
+SAVE_METRICS: False

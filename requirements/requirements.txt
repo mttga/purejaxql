@@ -6,7 +6,7 @@ chex==0.1.84
 optax==0.1.7
 gymnax==0.0.6
 safetensors==0.4.2
-craftax==1.4.3
+craftax==1.4.2
 blinker==1.4.0
 jaxmarl==0.0.4
 # less sensitive libs

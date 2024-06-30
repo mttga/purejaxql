@@ -400,7 +400,7 @@ def make_train(config):
                 transition = Transition(
                     obs=last_obs,
                     action=new_action,
-                    reward=reward,
+                    reward=config.get("REW_SCALE", 1)*reward,
                     done=new_done,
                     next_obs=new_obs,
                     q_val=q_vals,

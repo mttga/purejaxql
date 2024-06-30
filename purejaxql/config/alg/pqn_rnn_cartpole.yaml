@@ -1,7 +1,8 @@
-ALG_NAME: "pqn"
+ALG_NAME: "pqn_rnn"
 TOTAL_TIMESTEPS: 5e5
 TOTAL_TIMESTEPS_REAL: 5e5 # will be used for decay functions, in case you want to test for less timesteps and keep decays same
 NUM_ENVS: 32 # parallel environments
+MEMORY_WINDOW: 4 # steps of previous episode added in the rnn training horizon
 NUM_STEPS: 64 # steps per environment in each update
 EPS_START: 1.
 EPS_FINISH: 0.2
@@ -26,5 +27,6 @@ ENV_KWARGS: {}
 # evaluation
 TEST_DURING_TRAINING: True 
 TEST_INTERVAL: 0.05 # in terms of total updates
-TEST_ENVS: 128
+TEST_NUM_ENVS: 128
+# TEST_NUM_STEPS: 128 # setup automatically with max env timesteps
 EPS_TEST: 0. # 0 for greedy policy

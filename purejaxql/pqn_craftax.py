@@ -15,8 +15,14 @@ from flax.training.train_state import TrainState
 from gymnax.wrappers.purerl import FlattenObservationWrapper, LogWrapper
 import hydra
 from omegaconf import OmegaConf
-import gymnax
 import wandb
+
+from craftax.craftax_env import make_craftax_env_from_name
+from craftax_wrappers import (
+    LogWrapper,
+    OptimisticResetVecEnvWrapper,
+    BatchEnvWrapper,
+)
 
 
 class QNetwork(nn.Module):
@@ -82,17 +88,25 @@ def make_train(config):
         "NUM_MINIBATCHES"
     ] == 0, "NUM_MINIBATCHES must divide NUM_STEPS*NUM_ENVS"
 
-    env, env_params = gymnax.make(config["ENV_NAME"])
-    env = FlattenObservationWrapper(env)
-    env = LogWrapper(env)
-    config["TEST_LENGTH"] = config.get("TEST_LENGTH",env_params.max_steps_in_episode)
-
-    vmap_reset = lambda n_envs: lambda rng: jax.vmap(env.reset, in_axes=(0, None))(
-        jax.random.split(rng, n_envs), env_params
+    basic_env = make_craftax_env_from_name(
+        config["ENV_NAME"], not config["USE_OPTIMISTIC_RESETS"]
     )
-    vmap_step = lambda n_envs: lambda rng, env_state, action: jax.vmap(
-        env.step, in_axes=(0, 0, 0, None)
-    )(jax.random.split(rng, n_envs), env_state, action, env_params)
+    env_params = basic_env.default_params
+    log_env = LogWrapper(basic_env)
+    if config["USE_OPTIMISTIC_RESETS"]:
+        env = OptimisticResetVecEnvWrapper(
+            log_env,
+            num_envs=config["NUM_ENVS"],
+            reset_ratio=min(config["OPTIMISTIC_RESET_RATIO"], config["NUM_ENVS"]),
+        )
+        test_env = OptimisticResetVecEnvWrapper(
+            log_env,
+            num_envs=config["TEST_NUM_ENVS"],
+            reset_ratio=min(config["OPTIMISTIC_RESET_RATIO"], config["TEST_NUM_ENVS"]),
+        )
+    else:
+        env = BatchEnvWrapper(log_env, num_envs=config["NUM_ENVS"])
+        test_env = BatchEnvWrapper(log_env, num_envs=config["TEST_NUM_ENVS"])
 
     eps_scheduler = optax.linear_schedule(
         config["EPS_START"],
@@ -177,9 +191,9 @@ def make_train(config):
                 eps = jnp.full(config["NUM_ENVS"], eps_scheduler(train_state.n_updates))
                 new_action = jax.vmap(eps_greedy_exploration)(_rngs, q_vals, eps)
 
-                new_obs, new_env_state, reward, new_done, info = vmap_step(
-                    config["NUM_ENVS"]
-                )(rng_s, env_state, new_action)
+                new_obs, new_env_state, reward, new_done, info = env.step(
+                    rng_s, env_state, new_action, env_params
+                )
 
                 transition = Transition(
                     obs=last_obs,
@@ -233,13 +247,17 @@ def make_train(config):
 
             last_q = last_q * (1 - transitions.done[-1])
             lambda_returns = transitions.reward[-1] + config["GAMMA"] * last_q
-            _, targets = jax.lax.scan(
-                _get_target,
-                (lambda_returns, last_q),
-                jax.tree_map(lambda x: x[:-1], transitions),
-                reverse=True,
-            )
-            lambda_targets = jnp.concatenate((targets, lambda_returns[np.newaxis]))
+
+            if config["NUM_STEPS"] > 1: # q(lambda)
+                _, targets = jax.lax.scan(
+                    _get_target,
+                    (lambda_returns, last_q),
+                    jax.tree_map(lambda x: x[:-1], transitions),
+                    reverse=True,
+                )
+                lambda_targets = jnp.concatenate((targets, lambda_returns[np.newaxis]))
+            else: # 1-step td learning
+                lambda_targets = lambda_returns
 
             # NETWORKS UPDATE
             def _learn_epoch(carry, _):
@@ -316,7 +334,12 @@ def make_train(config):
                 "td_loss": loss.mean(),
                 "qvals": qvals.mean(),
             }
-            metrics.update({k: v.mean() for k, v in infos.items()})
+            done_infos = jax.tree_map(
+                lambda x: (x * infos["returned_episode"]).sum()
+                / infos["returned_episode"].sum(),
+                infos,
+            )
+            metrics.update(done_infos)
 
             if config.get("TEST_DURING_TRAINING", False):
                 rng, _rng = jax.random.split(rng)
@@ -329,6 +352,10 @@ def make_train(config):
                     operand=None,
                 )
                 metrics.update({f"test_{k}": v for k, v in test_metrics.items()})
+
+            # remove achievement metrics if not logging them
+            if not config.get("LOG_ACHIEVEMENTS", False):
+                metrics = {k: v for k, v in metrics.items() if "achievement" not in k.lower()}
 
             # report on wandb if required
             if config.get("WANDB_LOG_DURING_TRAINING"):
@@ -363,30 +390,26 @@ def make_train(config):
                     last_obs,
                     train=False,
                 )
-                eps = jnp.full(config["TEST_ENVS"], config["EPS_TEST"])
+                eps = jnp.full(config["TEST_NUM_ENVS"], config["EPS_TEST"])
                 action = jax.vmap(eps_greedy_exploration)(
-                    jax.random.split(_rng, config["TEST_ENVS"]), q_vals, eps
+                    jax.random.split(_rng, config["TEST_NUM_ENVS"]), q_vals, eps
                 )
-                new_obs, new_env_state, reward, done, info = vmap_step(
-                    config["TEST_ENVS"]
-                )(_rng, env_state, action)
+                new_obs, new_env_state, reward, done, info = test_env.step(
+                    _rng, env_state, action, env_params
+                )
+                
                 return (new_env_state, new_obs, rng), info
 
             rng, _rng = jax.random.split(rng)
-            init_obs, env_state = vmap_reset(config["TEST_ENVS"])(_rng)
+            init_obs, env_state = test_env.reset(_rng, env_params)
 
             _, infos = jax.lax.scan(
-                _env_step, (env_state, init_obs, _rng), None, config["TEST_LENGTH"]
+                _env_step, (env_state, init_obs, _rng), None, config["TEST_NUM_STEPS"]
             )
             # return mean of done infos
             done_infos = jax.tree_map(
-                lambda x: jnp.nanmean(
-                    jnp.where(
-                        infos["returned_episode"],
-                        x,
-                        jnp.nan,
-                    )
-                ),
+                lambda x: (x * infos["returned_episode"]).sum()
+                / infos["returned_episode"].sum(),
                 infos,
             )
             return done_infos
@@ -395,7 +418,7 @@ def make_train(config):
         test_metrics = get_test_metrics(train_state, _rng)
 
         rng, _rng = jax.random.split(rng)
-        expl_state = vmap_reset(config["NUM_ENVS"])(_rng)
+        expl_state = env.reset(_rng, env_params)
 
         # train
         rng, _rng = jax.random.split(rng)

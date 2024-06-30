@@ -18,6 +18,7 @@ LAMBDA: 0.65
 
 # env specific
 ENV_NAME: "Asterix-MinAtar"
+ENV_KWARGS: {}
 
 # evaluation
 TEST_DURING_TRAINING: True 
