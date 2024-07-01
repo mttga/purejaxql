@@ -7,7 +7,7 @@ COPY ${REQUIREMENTS_FILE} requirements.txt
 RUN pip install -r requirements.txt
 
 # put your wandb api key here
-ENV WANDB_API_KEY=0d12ae2bf6f9e4b7e1ab3939641dc8ebaf2c7082
+#ENV WANDB_API_KEY= your api key here
 
 # run stuff as non-root, comment if you want to run as root
 ARG UID
