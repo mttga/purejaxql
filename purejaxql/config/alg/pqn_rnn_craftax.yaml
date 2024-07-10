@@ -1,6 +1,6 @@
 ALG_NAME: "pqn_rnn"
-TOTAL_TIMESTEPS: 1e10
-TOTAL_TIMESTEPS_DECAY: 1e10 # will be used for decay functions, in case you want to test for less timesteps and keep decays same
+TOTAL_TIMESTEPS: 1e9
+TOTAL_TIMESTEPS_DECAY: 1e9 # will be used for decay functions, in case you want to test for less timesteps and keep decays same
 NUM_ENVS: 1024 # parallel environments
 MEMORY_WINDOW: 0 # steps of previous episode added in the rnn training horizon
 NUM_STEPS: 128 # steps per environment in each update
