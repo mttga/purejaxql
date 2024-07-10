@@ -1,6 +1,6 @@
 ALG_NAME: "pqn"
-TOTAL_TIMESTEPS: 5e7
-TOTAL_TIMESTEPS_REAL: 5e7 # will be used for decay functions, in case you want to test for less timesteps and keep decays same
+TOTAL_TIMESTEPS: 1e7
+TOTAL_TIMESTEPS_DECAY: 1e7 # will be used for decay functions (epsilon and lr)
 NUM_ENVS: 128 # parallel environments
 NUM_STEPS: 32 # steps per environment in each update
 EPS_START: 1.

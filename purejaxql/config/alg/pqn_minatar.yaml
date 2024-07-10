@@ -1,7 +1,7 @@
 # this is adapted from Atari configuration (with a slightly higher exploration eps), may get better results with some tuning
 ALG_NAME: "pqn"
 TOTAL_TIMESTEPS: 1e7
-TOTAL_TIMESTEPS_REAL: 1e7 # will be used for decay functions, in case you want to test for less timesteps and keep decays same
+TOTAL_TIMESTEPS_DECAY: 1e7 # will be used for decay functions, in case you want to test for less timesteps and keep decays same
 NUM_ENVS: 128 # parallel environments
 NUM_STEPS: 32 # steps per environment in each update
 EPS_START: 1.
@@ -23,5 +23,5 @@ ENV_KWARGS: {}
 # evaluation
 TEST_DURING_TRAINING: True 
 TEST_INTERVAL: 0.05 # in terms of total updates
-TEST_ENVS: 128
+TEST_NUM_ENVS: 128
 EPS_TEST: 0. # 0 for greedy policy

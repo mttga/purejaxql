@@ -126,10 +126,8 @@ def make_train(config, env):
         config["TOTAL_TIMESTEPS"] // config["NUM_STEPS"] // config["NUM_ENVS"]
     )
 
-    eps_scheduler = optax.linear_schedule(
-        config["EPS_START"],
-        config["EPS_FINISH"],
-        config["EPS_DECAY"] * config["NUM_UPDATES"],
+    config["NUM_UPDATES_DECAY"] = (
+        config["TOTAL_TIMESTEPS_DECAY"] // config["NUM_STEPS"] // config["NUM_ENVS"]
     )
 
     def get_greedy_actions(q_vals, valid_actions):
@@ -175,6 +173,12 @@ def make_train(config, env):
 
         original_seed = rng[0]
 
+        eps_scheduler = optax.linear_schedule(
+            config["EPS_START"],
+            config["EPS_FINISH"],
+            config["EPS_DECAY"] * config["NUM_UPDATES_DECAY"],
+        )
+
         # INIT ENV
         rng, _rng = jax.random.split(rng)
         wrapped_env = CTRolloutManager(
@@ -213,7 +217,7 @@ def make_train(config, env):
                 1e-10,
                 config["NUM_EPOCHS"]
                 * config["NUM_MINIBATCHES"]
-                * config["NUM_UPDATES"],
+                * config["NUM_UPDATES_DECAY"],
             )
 
             lr = lr_scheduler if config.get("LR_LINEAR_DECAY", False) else config["LR"]
@@ -767,13 +771,6 @@ def tune(default_config):
                     0.00005,
                 ]
             },
-            "NUM_ENVS": {"values": [8, 32, 64, 128]},
-            "NUM_STEPS": {"values": [8, 16, 24, 32]},
-            "GAMMA": {"values": [0.99, 0.9]},
-            "LAMBDA": {"values": [0, 0.3, 0.5, 0.7, 0.9]},
-            "EPS_FINISH": {"values": [0.01, 0.05, 0.1]},
-            "NORM_TYPE": {"values": ["layer_norm", "batch_norm"]},
-            "NUM_MINIBATCHES": {"values": [1, 2, 4, 8, 16]},
         },
     }
 

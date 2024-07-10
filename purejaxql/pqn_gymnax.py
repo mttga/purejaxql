@@ -2,6 +2,10 @@
 This script is compatible with the gymnax environments: https://github.com/RobertTLange/gymnax/tree/main
 It uses by default the FlattenObservationWrapper, meaning that the observations are flattened before being fed to the network.
 """
+
+import copy
+import os
+import time
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -74,8 +78,8 @@ def make_train(config):
         config["TOTAL_TIMESTEPS"] // config["NUM_STEPS"] // config["NUM_ENVS"]
     )
 
-    config["NUM_UPDATES_REAL"] = (
-        config["TOTAL_TIMESTEPS_REAL"] // config["NUM_STEPS"] // config["NUM_ENVS"]
+    config["NUM_UPDATES_DECAY"] = (
+        config["TOTAL_TIMESTEPS_DECAY"] // config["NUM_STEPS"] // config["NUM_ENVS"]
     )
 
     assert (config["NUM_STEPS"] * config["NUM_ENVS"]) % config[
@@ -85,7 +89,9 @@ def make_train(config):
     env, env_params = gymnax.make(config["ENV_NAME"])
     env = FlattenObservationWrapper(env)
     env = LogWrapper(env)
-    config["TEST_LENGTH"] = config.get("TEST_LENGTH",env_params.max_steps_in_episode)
+    config["TEST_NUM_STEPS"] = config.get(
+        "TEST_NUM_STEPS", env_params.max_steps_in_episode
+    )
 
     vmap_reset = lambda n_envs: lambda rng: jax.vmap(env.reset, in_axes=(0, None))(
         jax.random.split(rng, n_envs), env_params
@@ -93,12 +99,6 @@ def make_train(config):
     vmap_step = lambda n_envs: lambda rng, env_state, action: jax.vmap(
         env.step, in_axes=(0, 0, 0, None)
     )(jax.random.split(rng, n_envs), env_state, action, env_params)
-
-    eps_scheduler = optax.linear_schedule(
-        config["EPS_START"],
-        config["EPS_FINISH"],
-        (config["EPS_DECAY"]) * config["NUM_UPDATES_REAL"],
-    )
 
     # epsilon-greedy exploration
     def eps_greedy_exploration(rng, q_vals, eps):
@@ -116,18 +116,24 @@ def make_train(config):
         )
         return chosed_actions
 
-    lr_scheduler = optax.linear_schedule(
-        init_value=config["LR"],
-        end_value=1e-20,
-        transition_steps=(config["NUM_UPDATES_REAL"])
-        * config["NUM_MINIBATCHES"]
-        * config["NUM_EPOCHS"],
-    )
-    lr = lr_scheduler if config.get("LR_LINEAR_DECAY", False) else config["LR"]
-
     def train(rng):
 
         original_rng = rng[0]
+
+        eps_scheduler = optax.linear_schedule(
+            config["EPS_START"],
+            config["EPS_FINISH"],
+            (config["EPS_DECAY"]) * config["NUM_UPDATES_DECAY"],
+        )
+
+        lr_scheduler = optax.linear_schedule(
+            init_value=config["LR"],
+            end_value=1e-20,
+            transition_steps=(config["NUM_UPDATES_DECAY"])
+            * config["NUM_MINIBATCHES"]
+            * config["NUM_EPOCHS"],
+        )
+        lr = lr_scheduler if config.get("LR_LINEAR_DECAY", False) else config["LR"]
 
         # INIT NETWORK AND OPTIMIZER
         network = QNetwork(
@@ -141,7 +147,10 @@ def make_train(config):
         def create_agent(rng):
             init_x = jnp.zeros((1, *env.observation_space(env_params).shape))
             network_variables = network.init(rng, init_x, train=False)
-            tx = optax.radam(learning_rate=lr)
+            tx = optax.chain(
+                optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
+                optax.radam(learning_rate=lr),
+            )
 
             train_state = CustomTrainState.create(
                 apply_fn=network.apply,
@@ -184,7 +193,7 @@ def make_train(config):
                 transition = Transition(
                     obs=last_obs,
                     action=new_action,
-                    reward=config.get("REW_SCALE", 1)*reward,
+                    reward=config.get("REW_SCALE", 1) * reward,
                     done=new_done,
                     next_obs=new_obs,
                     q_val=q_vals,
@@ -331,21 +340,23 @@ def make_train(config):
                 metrics.update({f"test_{k}": v for k, v in test_metrics.items()})
 
             # report on wandb if required
-            if config.get("WANDB_LOG_DURING_TRAINING"):
+            if config["WANDB_MODE"] != "disabled":
 
                 def callback(metrics, original_rng):
                     if config.get("WANDB_LOG_ALL_SEEDS", False):
-                        metrics.update({
-                            f'rng{int(original_rng)}/{k}':v
-                            for k, v in metrics.items()
-                        })
-                    wandb.log(metrics)
-            
+                        metrics.update(
+                            {
+                                f"rng{int(original_rng)}/{k}": v
+                                for k, v in metrics.items()
+                            }
+                        )
+                    wandb.log(metrics, step=metrics["update_steps"])
+
                 jax.debug.callback(callback, metrics, original_rng)
 
             runner_state = (train_state, tuple(expl_state), test_metrics, rng)
 
-            return runner_state, None
+            return runner_state, metrics
 
         def get_test_metrics(train_state, rng):
 
@@ -363,20 +374,20 @@ def make_train(config):
                     last_obs,
                     train=False,
                 )
-                eps = jnp.full(config["TEST_ENVS"], config["EPS_TEST"])
+                eps = jnp.full(config["TEST_NUM_ENVS"], config["EPS_TEST"])
                 action = jax.vmap(eps_greedy_exploration)(
-                    jax.random.split(_rng, config["TEST_ENVS"]), q_vals, eps
+                    jax.random.split(_rng, config["TEST_NUM_ENVS"]), q_vals, eps
                 )
                 new_obs, new_env_state, reward, done, info = vmap_step(
-                    config["TEST_ENVS"]
+                    config["TEST_NUM_ENVS"]
                 )(_rng, env_state, action)
                 return (new_env_state, new_obs, rng), info
 
             rng, _rng = jax.random.split(rng)
-            init_obs, env_state = vmap_reset(config["TEST_ENVS"])(_rng)
+            init_obs, env_state = vmap_reset(config["TEST_NUM_ENVS"])(_rng)
 
             _, infos = jax.lax.scan(
-                _env_step, (env_state, init_obs, _rng), None, config["TEST_LENGTH"]
+                _env_step, (env_state, init_obs, _rng), None, config["TEST_NUM_STEPS"]
             )
             # return mean of done infos
             done_infos = jax.tree_map(
@@ -412,64 +423,77 @@ def make_train(config):
 
 def single_run(config):
 
+    config = {**config, **config["alg"]}
+
+    alg_name = config.get("ALG_NAME", "pqn")
+    env_name = config["ENV_NAME"]
+
     wandb.init(
         entity=config["ENTITY"],
         project=config["PROJECT"],
-        tags=[config["alg"]["ALG_NAME"].upper(), config["alg"]["ENV_NAME"].upper(), f"jax_{jax.__version__}"],
-        name=f'{config["alg"]["ALG_NAME"]}_{config["alg"]["ENV_NAME"]}',
+        tags=[
+            alg_name.upper(),
+            env_name.upper(),
+            f"jax_{jax.__version__}",
+        ],
+        name=f'{config["ALG_NAME"]}_{config["ENV_NAME"]}',
         config=config,
         mode=config["WANDB_MODE"],
     )
 
     rng = jax.random.PRNGKey(config["SEED"])
-    config["alg"]["WANDB_LOG_DURING_TRAINING"] = config["WANDB_MODE"] != "disabled"
 
-    if config["NUM_SEEDS"] > 1:
-        rngs = jax.random.split(rng, config["NUM_SEEDS"])
-        train_vjit = jax.jit(jax.vmap(make_train(config["alg"])))
-        outs = jax.block_until_ready(train_vjit(rngs))
-    else:
-        outs = jax.jit(make_train(config["alg"]))(rng)
+    t0 = time.time()
+    rngs = jax.random.split(rng, config["NUM_SEEDS"])
+    train_vjit = jax.jit(jax.vmap(make_train(config)))
+    outs = jax.block_until_ready(train_vjit(rngs))
+    print(f"Took {time.time()-t0} seconds to complete.")
+
+    if config.get("SAVE_PATH", None) is not None:
+        from jaxmarl.wrappers.baselines import save_params
+
+        model_state = outs["runner_state"][0]
+        save_dir = os.path.join(config["SAVE_PATH"], env_name)
+        os.makedirs(save_dir, exist_ok=True)
+        OmegaConf.save(
+            config,
+            os.path.join(
+                save_dir, f'{alg_name}_{env_name}_seed{config["SEED"]}_config.yaml'
+            ),
+        )
+
+        for i, rng in enumerate(rngs):
+            params = jax.tree_map(lambda x: x[i], model_state.params)
+            save_path = os.path.join(
+                save_dir,
+                f'{alg_name}_{env_name}_seed{config["SEED"]}_vmap{i}.safetensors',
+            )
+            save_params(params, save_path)
 
 
 def tune(default_config):
     """Hyperparameter sweep with wandb."""
-    import copy
-    from multiprocessing import Process
 
-    default_config["alg"]["WANDB_LOG_DURING_TRAINING"] = default_config["WANDB_MODE"] != "disabled"
+    default_config = {**default_config, **default_config["alg"]}
+    alg_name = default_config.get("ALG_NAME", "pqn")
+    env_name = default_config["ENV_NAME"]
 
     def wrapped_make_train():
         wandb.init(project=default_config["PROJECT"])
 
-        def run_experiment():
-            # update the default params
-            config = copy.deepcopy(default_config)
-            for k, v in dict(wandb.config).items():
-                config["alg"][k] = v
+        config = copy.deepcopy(default_config)
+        for k, v in dict(wandb.config).items():
+            config[k] = v
 
-            print("running experiment with params:", config["alg"])
+            print("running experiment with params:", config)
 
             rng = jax.random.PRNGKey(config["SEED"])
-
-            if config["NUM_SEEDS"] > 1:
-                rngs = jax.random.split(rng, config["NUM_SEEDS"])
-                train_vjit = jax.jit(jax.vmap(make_train(config["alg"])))
-                outs = jax.block_until_ready(train_vjit(rngs))
-            else:
-                outs = jax.jit(make_train(config["alg"]))(rng)
-
-        p = Process(target=run_experiment)
-        p.start()
-        p.join(default_config["EXP_TIME_LIMIT"])  # Timeout
-
-        if p.is_alive():
-            print("Experiment timed out.")
-            p.terminate()
-            p.join()
+            rngs = jax.random.split(rng, config["NUM_SEEDS"])
+            train_vjit = jax.jit(jax.vmap(make_train(config)))
+            outs = jax.block_until_ready(train_vjit(rngs))
 
     sweep_config = {
-        "name": f'{default_config["alg"]["ALG_NAME"]}_{default_config["alg"]["ENV_NAME"]}',
+        "name": f"{alg_name}_{env_name}",
         "method": "bayes",
         "metric": {
             "name": "test_returned_episode_returns",
@@ -484,16 +508,6 @@ def tune(default_config):
                     0.00005,
                 ]
             },
-            "EPS_DECAY": {"values": [0.01, 0.1, 0.2]},
-            "EPS_FINISH": {"values": [0.01, 0.05, 0.001]},
-            "NUM_MINIBATCHES": {"values": [1, 2, 4, 8, 16]},
-            "NUM_EPOCHS": {"values": [1,2,3,4]},
-            "NUM_STEPS": {"values": [1, 8, 16, 32, 64, 128]},
-            "NUM_ENVS": {"values": [4, 8, 16, 32, 64, 128]},
-            "LAMBDA": {"values": [0., 0.3, 0.6, 0.9]},
-            "MAX_GRAD_NORM": {"values": [1, 10]},
-            "LR_LINEAR_DECAY": {"values": [True, False]},
-            "NORM_INPUT": {"values": [True, False]},
         },
     }
 
@@ -501,7 +515,7 @@ def tune(default_config):
     sweep_id = wandb.sweep(
         sweep_config, entity=default_config["ENTITY"], project=default_config["PROJECT"]
     )
-    wandb.agent("ldatlup3", wrapped_make_train, count=1000)
+    wandb.agent(sweep_id, wrapped_make_train, count=1000)
 
 
 @hydra.main(version_base=None, config_path="./config", config_name="config")

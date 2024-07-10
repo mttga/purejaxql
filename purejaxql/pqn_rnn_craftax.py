@@ -1,8 +1,9 @@
 """
-This script is compatible with the gymnax environments: https://github.com/RobertTLange/gymnax/tree/main
-It uses by default the FlattenObservationWrapper, meaning that the observations are flattened before being fed to the network.
+This script uses BatchRenorm for more effective batch normalization in long training runs.
 """
-
+import os
+import time
+import copy
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -26,6 +27,140 @@ from craftax_wrappers import (
     BatchEnvWrapper,
 )
 
+from flax.linen.normalization import _compute_stats, _normalize, _canonicalize_axes
+from typing import Any, Callable, Iterable, Optional, Sequence, Tuple, Union
+from flax.linen.dtypes import canonicalize_dtype
+from flax.linen.module import (
+    Module,
+    compact,
+    merge_param,
+)  # pylint: disable=g-multiple-import
+from jax import lax
+from jax.nn import initializers
+import jax.numpy as jnp
+
+
+PRNGKey = Any
+Array = Any
+Shape = Tuple[int, ...]
+Dtype = Any  # this could be a real type?
+Axes = Union[int, Sequence[int]]
+
+
+class BatchRenorm(Module):
+    """BatchRenorm Module, implemented based on the Batch Renormalization paper (https://arxiv.org/abs/1702.03275).
+    and adapted from Flax's BatchNorm implementation:
+    https://github.com/google/flax/blob/ce8a3c74d8d1f4a7d8f14b9fb84b2cc76d7f8dbf/flax/linen/normalization.py#L228
+    """
+
+    use_running_average: Optional[bool] = None
+    axis: int = -1
+    momentum: float = 0.999
+    epsilon: float = 0.001
+    dtype: Optional[Dtype] = None
+    param_dtype: Dtype = jnp.float32
+    use_bias: bool = True
+    use_scale: bool = True
+    bias_init: Callable[[PRNGKey, Shape, Dtype], Array] = initializers.zeros
+    scale_init: Callable[[PRNGKey, Shape, Dtype], Array] = initializers.ones
+    axis_name: Optional[str] = None
+    axis_index_groups: Any = None
+    use_fast_variance: bool = True
+
+    @compact
+    def __call__(self, x, use_running_average: Optional[bool] = None):
+
+        use_running_average = merge_param(
+            "use_running_average", self.use_running_average, use_running_average
+        )
+        feature_axes = _canonicalize_axes(x.ndim, self.axis)
+        reduction_axes = tuple(i for i in range(x.ndim) if i not in feature_axes)
+        feature_shape = [x.shape[ax] for ax in feature_axes]
+
+        ra_mean = self.variable(
+            "batch_stats",
+            "mean",
+            lambda s: jnp.zeros(s, jnp.float32),
+            feature_shape,
+        )
+        ra_var = self.variable(
+            "batch_stats", "var", lambda s: jnp.ones(s, jnp.float32), feature_shape
+        )
+
+        r_max = self.variable(
+            "batch_stats",
+            "r_max",
+            lambda s: s,
+            3,
+        )
+        d_max = self.variable(
+            "batch_stats",
+            "d_max",
+            lambda s: s,
+            5,
+        )
+        steps = self.variable(
+            "batch_stats",
+            "steps",
+            lambda s: s,
+            0,
+        )
+
+        if use_running_average:
+            mean, var = ra_mean.value, ra_var.value
+            custom_mean = mean
+            custom_var = var
+        else:
+            mean, var = _compute_stats(
+                x,
+                reduction_axes,
+                dtype=self.dtype,
+                axis_name=self.axis_name if not self.is_initializing() else None,
+                axis_index_groups=self.axis_index_groups,
+                use_fast_variance=self.use_fast_variance,
+            )
+            custom_mean = mean
+            custom_var = var
+            if not self.is_initializing():
+                # The code below is implemented following the Batch Renormalization paper
+                r = 1
+                d = 0
+                std = jnp.sqrt(var + self.epsilon)
+                ra_std = jnp.sqrt(ra_var.value + self.epsilon)
+                r = jax.lax.stop_gradient(std / ra_std)
+                r = jnp.clip(r, 1 / r_max.value, r_max.value)
+                d = jax.lax.stop_gradient((mean - ra_mean.value) / ra_std)
+                d = jnp.clip(d, -d_max.value, d_max.value)
+                tmp_var = var / (r**2)
+                tmp_mean = mean - d * jnp.sqrt(custom_var) / r
+
+                # Warm up batch renorm for 100_000 steps to build up proper running statistics
+                warmed_up = jnp.greater_equal(steps.value, 1000).astype(jnp.float32)
+                custom_var = warmed_up * tmp_var + (1.0 - warmed_up) * custom_var
+                custom_mean = warmed_up * tmp_mean + (1.0 - warmed_up) * custom_mean
+
+                ra_mean.value = (
+                    self.momentum * ra_mean.value + (1 - self.momentum) * mean
+                )
+                ra_var.value = self.momentum * ra_var.value + (1 - self.momentum) * var
+                steps.value += 1
+
+        return _normalize(
+            self,
+            x,
+            custom_mean,
+            custom_var,
+            reduction_axes,
+            feature_axes,
+            self.dtype,
+            self.param_dtype,
+            self.epsilon,
+            self.use_bias,
+            self.use_scale,
+            self.bias_init,
+            self.scale_init,
+        )
+
 
 class ScannedRNN(nn.Module):
 
@@ -41,19 +176,22 @@ class ScannedRNN(nn.Module):
         """Applies the module."""
         rnn_state = carry
         ins, resets = x
-        hidden_size = rnn_state.shape[-1]
-        rnn_state = jnp.where(
-            resets[:, np.newaxis],
-            self.initialize_carry(hidden_size, *resets.shape),
+        hidden_size = rnn_state[0].shape[-1]
+
+        init_rnn_state = self.initialize_carry(hidden_size, *resets.shape)
+        rnn_state = jax.tree_map(
+            lambda init, old: jnp.where(resets[:, np.newaxis], init, old),
+            init_rnn_state,
             rnn_state,
         )
-        new_rnn_state, y = nn.GRUCell(hidden_size)(rnn_state, ins)
+
+        new_rnn_state, y = nn.OptimizedLSTMCell(hidden_size)(rnn_state, ins)
         return new_rnn_state, y
 
     @staticmethod
     def initialize_carry(hidden_size, *batch_size):
         # Use a dummy key since the default state init fn is just zeros.
-        return nn.GRUCell(hidden_size, parent=None).initialize_carry(
+        return nn.OptimizedLSTMCell(hidden_size, parent=None).initialize_carry(
             jax.random.PRNGKey(0), (*batch_size, hidden_size)
         )
 
@@ -73,15 +211,15 @@ class RNNQNetwork(nn.Module):
         if self.norm_type == "layer_norm":
             normalize = lambda x: nn.LayerNorm()(x)
         elif self.norm_type == "batch_norm":
-            normalize = lambda x: nn.BatchNorm(use_running_average=not train)(x)
+            normalize = lambda x: BatchRenorm(use_running_average=not train)(x)
         else:
             normalize = lambda x: x
 
         if self.norm_input:
-            x = nn.BatchNorm(use_running_average=not train)(x)
+            x = BatchRenorm(use_running_average=not train)(x)
         else:
             # dummy normalize input in any case for global compatibility
-            x_dummy = nn.BatchNorm(use_running_average=not train)(x)
+            x_dummy = BatchRenorm(use_running_average=not train)(x)
 
         for l in range(self.num_layers):
             x = nn.Dense(self.hidden_size)(x)
@@ -98,8 +236,6 @@ class RNNQNetwork(nn.Module):
             rnn_in = (x, done)
             hidden_aux, x = ScannedRNN()(hidden[i], rnn_in)
             new_hidden.append(hidden_aux)
-            x = normalize(x)
-            x = nn.relu(x)
 
         q_vals = nn.Dense(self.action_dim)(x)
 
@@ -137,8 +273,8 @@ def make_train(config):
         config["TOTAL_TIMESTEPS"] // config["NUM_STEPS"] // config["NUM_ENVS"]
     )
 
-    config["NUM_UPDATES_REAL"] = (
-        config["TOTAL_TIMESTEPS_REAL"] // config["NUM_STEPS"] // config["NUM_ENVS"]
+    config["NUM_UPDATES_DECAY"] = (
+        config["TOTAL_TIMESTEPS_DECAY"] // config["NUM_STEPS"] // config["NUM_ENVS"]
     )
 
     assert (config["NUM_STEPS"] * config["NUM_ENVS"]) % config[
@@ -165,12 +301,6 @@ def make_train(config):
         env = BatchEnvWrapper(log_env, num_envs=config["NUM_ENVS"])
         test_env = BatchEnvWrapper(log_env, num_envs=config["TEST_NUM_ENVS"])
 
-    eps_scheduler = optax.linear_schedule(
-        config["EPS_START"],
-        config["EPS_FINISH"],
-        (config["EPS_DECAY"]) * config["NUM_UPDATES_REAL"],
-    )
-
     # epsilon-greedy exploration
     def eps_greedy_exploration(rng, q_vals, eps):
         rng_a, rng_e = jax.random.split(
@@ -187,18 +317,24 @@ def make_train(config):
         )
         return chosed_actions
 
-    lr_scheduler = optax.linear_schedule(
-        init_value=config["LR"],
-        end_value=1e-20,
-        transition_steps=(config["NUM_UPDATES_REAL"])
-        * config["NUM_MINIBATCHES"]
-        * config["NUM_EPOCHS"],
-    )
-    lr = lr_scheduler if config.get("LR_LINEAR_DECAY", False) else config["LR"]
 
     def train(rng):
 
         original_rng = rng[0]
+        eps_scheduler = optax.linear_schedule(
+            config["EPS_START"],
+            config["EPS_FINISH"],
+            (config["EPS_DECAY"]) * config["NUM_UPDATES_DECAY"],
+        )
+        
+        lr_scheduler = optax.linear_schedule(
+            init_value=config["LR"],
+            end_value=1e-20,
+            transition_steps=(config["NUM_UPDATES_DECAY"])
+            * config["NUM_MINIBATCHES"]
+            * config["NUM_EPOCHS"],
+        )
+        lr = lr_scheduler if config.get("LR_LINEAR_DECAY", False) else config["LR"]
 
         # INIT NETWORK AND OPTIMIZER
         network = RNNQNetwork(
@@ -221,7 +357,10 @@ def make_train(config):
             )  # (obs, dones, last_actions)
             init_hs = network.initialize_carry(1)  # (batch_size, hidden_dim)
             network_variables = network.init(rng, init_hs, *init_x, train=False)
-            tx = optax.radam(learning_rate=lr)
+            tx = optax.chain(
+                optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
+                optax.radam(learning_rate=lr),
+            )
 
             train_state = CustomTrainState.create(
                 apply_fn=network.apply,
@@ -320,9 +459,7 @@ def make_train(config):
                     # with batch_size = num_envs/num_minibatches
 
                     train_state, rng = carry
-                    hs = minibatch.last_hs[
-                        0
-                    ]  # hs of oldest step (batch_size, hidden_size)
+                    hs = jax.tree_map(lambda x: x[0], minibatch.last_hs)  # hs of oldest step (batch_size, hidden_size)
                     agent_in = (
                         minibatch.obs,
                         minibatch.last_done,
@@ -469,7 +606,7 @@ def make_train(config):
                 }
 
             # report on wandb if required
-            if config.get("WANDB_LOG_DURING_TRAINING"):
+            if config["WANDB_MODE"] != "disabled":
 
                 def callback(metrics, original_rng):
                     if config.get("WANDB_LOG_ALL_SEEDS", False):
@@ -479,7 +616,7 @@ def make_train(config):
                                 for k, v in metrics.items()
                             }
                         )
-                    wandb.log(metrics)
+                    wandb.log(metrics, step=metrics["update_steps"])
 
                 jax.debug.callback(callback, metrics, original_rng)
 
@@ -634,70 +771,77 @@ def make_train(config):
 
 def single_run(config):
 
+    config = {**config, **config["alg"]}
+
+    alg_name = config.get("ALG_NAME", "pqn_rnn")
+    env_name = config["ENV_NAME"]
+
     wandb.init(
         entity=config["ENTITY"],
         project=config["PROJECT"],
         tags=[
-            config["alg"]["ALG_NAME"].upper(),
-            config["alg"]["ENV_NAME"].upper(),
+            alg_name.upper(),
+            env_name.upper(),
             f"jax_{jax.__version__}",
         ],
-        name=f'{config["alg"]["ALG_NAME"]}_{config["alg"]["ENV_NAME"]}',
+        name=f'{config["ALG_NAME"]}_{config["ENV_NAME"]}',
         config=config,
         mode=config["WANDB_MODE"],
     )
 
     rng = jax.random.PRNGKey(config["SEED"])
-    config["alg"]["WANDB_LOG_DURING_TRAINING"] = config["WANDB_MODE"] != "disabled"
 
-    if config["NUM_SEEDS"] > 1:
-        rngs = jax.random.split(rng, config["NUM_SEEDS"])
-        train_vjit = jax.jit(jax.vmap(make_train(config["alg"])))
-        outs = jax.block_until_ready(train_vjit(rngs))
-    else:
-        outs = jax.jit(make_train(config["alg"]))(rng)
+    t0 = time.time()
+    rngs = jax.random.split(rng, config["NUM_SEEDS"])
+    train_vjit = jax.jit(jax.vmap(make_train(config)))
+    outs = jax.block_until_ready(train_vjit(rngs))
+    print(f"Took {time.time()-t0} seconds to complete.")
+
+    if config.get("SAVE_PATH", None) is not None:
+        from jaxmarl.wrappers.baselines import save_params
+
+        model_state = outs["runner_state"][0]
+        save_dir = os.path.join(config["SAVE_PATH"], env_name)
+        os.makedirs(save_dir, exist_ok=True)
+        OmegaConf.save(
+            config,
+            os.path.join(
+                save_dir, f'{alg_name}_{env_name}_seed{config["SEED"]}_config.yaml'
+            ),
+        )
+
+        for i, rng in enumerate(rngs):
+            params = jax.tree_map(lambda x: x[i], model_state.params)
+            save_path = os.path.join(
+                save_dir,
+                f'{alg_name}_{env_name}_seed{config["SEED"]}_vmap{i}.safetensors',
+            )
+            save_params(params, save_path)
 
 
 def tune(default_config):
     """Hyperparameter sweep with wandb."""
-    import copy
-    from multiprocessing import Process
 
-    default_config["alg"]["WANDB_LOG_DURING_TRAINING"] = (
-        default_config["WANDB_MODE"] != "disabled"
-    )
+    default_config = {**default_config, **default_config["alg"]}
+    alg_name = default_config.get("ALG_NAME", "pqn")
+    env_name = default_config["ENV_NAME"]
 
     def wrapped_make_train():
         wandb.init(project=default_config["PROJECT"])
 
-        def run_experiment():
-            # update the default params
-            config = copy.deepcopy(default_config)
-            for k, v in dict(wandb.config).items():
-                config["alg"][k] = v
+        config = copy.deepcopy(default_config)
+        for k, v in dict(wandb.config).items():
+            config[k] = v
 
-            print("running experiment with params:", config["alg"])
+            print("running experiment with params:", config)
 
             rng = jax.random.PRNGKey(config["SEED"])
-
-            if config["NUM_SEEDS"] > 1:
-                rngs = jax.random.split(rng, config["NUM_SEEDS"])
-                train_vjit = jax.jit(jax.vmap(make_train(config["alg"])))
-                outs = jax.block_until_ready(train_vjit(rngs))
-            else:
-                outs = jax.jit(make_train(config["alg"]))(rng)
-
-        p = Process(target=run_experiment)
-        p.start()
-        p.join(default_config["EXP_TIME_LIMIT"])  # Timeout
-
-        if p.is_alive():
-            print("Experiment timed out.")
-            p.terminate()
-            p.join()
+            rngs = jax.random.split(rng, config["NUM_SEEDS"])
+            train_vjit = jax.jit(jax.vmap(make_train(config)))
+            outs = jax.block_until_ready(train_vjit(rngs))
 
     sweep_config = {
-        "name": f'{default_config["alg"]["ALG_NAME"]}_{default_config["alg"]["ENV_NAME"]}',
+        "name": f"{alg_name}_{env_name}",
         "method": "bayes",
         "metric": {
             "name": "test_returned_episode_returns",
@@ -712,16 +856,6 @@ def tune(default_config):
                     0.00005,
                 ]
             },
-            "EPS_DECAY": {"values": [0.01, 0.1, 0.2]},
-            "EPS_FINISH": {"values": [0.01, 0.05, 0.001]},
-            "NUM_MINIBATCHES": {"values": [1, 2, 4, 8, 16]},
-            "NUM_EPOCHS": {"values": [1, 2, 3, 4]},
-            "NUM_STEPS": {"values": [1, 8, 16, 32, 64, 128]},
-            "NUM_ENVS": {"values": [4, 8, 16, 32, 64, 128]},
-            "LAMBDA": {"values": [0.0, 0.3, 0.6, 0.9]},
-            "MAX_GRAD_NORM": {"values": [1, 10]},
-            "LR_LINEAR_DECAY": {"values": [True, False]},
-            "NORM_INPUT": {"values": [True, False]},
         },
     }
 
@@ -729,7 +863,7 @@ def tune(default_config):
     sweep_id = wandb.sweep(
         sweep_config, entity=default_config["ENTITY"], project=default_config["PROJECT"]
     )
-    wandb.agent("ldatlup3", wrapped_make_train, count=1000)
+    wandb.agent(sweep_id, wrapped_make_train, count=1000)
 
 
 @hydra.main(version_base=None, config_path="./config", config_name="config")
