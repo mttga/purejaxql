@@ -70,15 +70,15 @@ Currently, after around 4 hours of training and 400M environment frames, PQN can
 
 When combined with an RNN network, PQN offers a more sample-efficient baseline compared to PPO. As an off-policy algorithm, PQN could be an interesting starting point for population-based training in Craftax!
 
-<div style="text-align: center;">
-  <img src="docs/craftax_rnn.png" alt="craftax_rnn" width="300" style="max-width: 40%;"/>
+<div style="text-align: center; margin: auto;">
+  <img src="docs/craftax_rnn.png" alt="craftax_rnn" width="300" style="max-width: 100%;"/>
 </div>
 
 ### Multi-Agent (JaxMarl)
 
 When combined with Value Decomposition Networks, PQN is a strong baseline for multi-agent tasks.
 
-<table style="width: 100%; text-align: center; border-collapse: collapse;">
+<table style="width: 100%; margin: auto; text-align: center; border-collapse: collapse;">
   <tr>
     <td style="width: 50%; vertical-align: top; padding: 10px;">
       <h4>Smax</h4>
