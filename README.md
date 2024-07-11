@@ -1,3 +1,4 @@
+
 # Exploring Q-Learning in Pure-GPU Setting
 
 [<img src="https://img.shields.io/badge/license-Apache2.0-blue.svg">](https://github.com/luchris429/purejaxrl/LICENSE)
@@ -23,38 +24,20 @@ With PQN and a single NVIDIA A40 (achieving similar performance to an RTX 3090),
 - 👾 Train a Q-Learning agent in Craftax much faster than when using a replay buffer.
 - 👥 Train a strong Q-Learning baseline with VDN in multi-agent tasks.
 
-<style>
-    .container {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        flex-wrap: wrap;
-        gap: 20px;
-    }
-    .item {
-        flex: 1 1 calc(33.333% - 20px); /* Adjust for gap */
-        text-align: center;
-        box-sizing: border-box;
-    }
-    img {
-        max-width: 100%;
-        height: auto;
-    }
-</style>
-<div class="container">
-    <div class="item">
+<div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px;">
+    <div style="flex: 1 1 calc(33.333% - 20px); text-align: center; box-sizing: border-box;">
         <h3>Cartpole</h3>
-        <img src="docs/cart_pole_time.png" alt="Cartpole">
+        <img src="docs/cart_pole_time.png" alt="Cartpole" style="max-width: 100%; height: auto;">
         <h4><i>It takes a few seconds to train on simple tasks and also for training dozens of parallel seeds.</i></h4>
     </div>
-    <div class="item">
+    <div style="flex: 1 1 calc(33.333% - 20px); text-align: center; box-sizing: border-box;">
         <h3>Atari</h3>
-        <img src="docs/pong_time_comparison.png" alt="Atari">
+        <img src="docs/pong_time_comparison.png" alt="Atari" style="max-width: 100%; height: auto;">
         <h4><i>With PQN you can solve Pong in less than 5 minutes.</i></h4>
     </div>
-    <div class="item">
+    <div style="flex: 1 1 calc(33.333% - 20px); text-align: center; box-sizing: border-box;">
         <h3>Craftax</h3>
-        <img src="docs/craftax_buffer.png" alt="Craftax">
+        <img src="docs/craftax_buffer.png" alt="Craftax" style="max-width: 100%; height: auto;">
         <h4><i>Training a Q-Learning agent in Craftax with PQN is much faster than using a replay buffer.</i></h4>
     </div>
 </div>
@@ -65,18 +48,18 @@ With PQN and a single NVIDIA A40 (achieving similar performance to an RTX 3090),
 
 Currently, after around 4 hours of training and 400M environment frames, PQN can achieve a median score similar to the original Rainbow paper in ALE, reaching scores higher than humans in 40 of the 57 Atari games. While this is far from the latest SOTA in ALE, it can serve as a good starting point for faster research in ALE.
 
-<div class="container">
-    <div class="item">
+<div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px;">
+    <div style="flex: 1 1 calc(33.333% - 20px); text-align: center; box-sizing: border-box;">
         <h4>Median Score</h4>
-        <img src="docs/atari-57_median.png" alt="Atari-57_median">
+        <img src="docs/atari-57_median.png" alt="Atari-57_median" style="max-width: 100%; height: auto;">
     </div>
-    <div class="item">
+    <div style="flex: 1 1 calc(33.333% - 20px); text-align: center; box-sizing: border-box;">
         <h4>Performance Profile</h4>
-        <img src="docs/atari-57_tau.png" alt="Atari-57_tau">
+        <img src="docs/atari-57_tau.png" alt="Atari-57_tau" style="max-width: 100%; height: auto;">
     </div>
-    <div class="item">
+    <div style="flex: 1 1 calc(33.333% - 20px); text-align: center; box-sizing: border-box;">
         <h4>Training Speed</h4>
-        <img src="docs/atari-57_speed.png" alt="Atari-57_speed">
+        <img src="docs/atari-57_speed.png" alt="Atari-57_speed" style="max-width: 100%; height: auto;">
     </div>
 </div>
 
@@ -84,8 +67,8 @@ Currently, after around 4 hours of training and 400M environment frames, PQN can
 
 When combined with an RNN network, PQN offers a more sample-efficient baseline compared to PPO. As an off-policy algorithm, PQN could be an interesting starting point for population-based training in Craftax!
 
-<div class="container">
-    <div class="item">
+<div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px;">
+    <div style="flex: 1 1 calc(33.333% - 20px); text-align: center; box-sizing: border-box;">
         <img src="docs/craftax_rnn.png" alt="craftax_rnn" style="max-width: 40%;">
     </div>
 </div>
@@ -94,14 +77,14 @@ When combined with an RNN network, PQN offers a more sample-efficient baseline c
 
 When combined with Value Decomposition Networks, PQN is a strong baseline for multi-agent tasks.
 
-<div class="container">
-    <div class="item">
+<div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px;">
+    <div style="flex: 1 1 calc(33.333% - 20px); text-align: center; box-sizing: border-box;">
         <h4>Smax</h4>
-        <img src="docs/smax_iqm.png" alt="smax">
+        <img src="docs/smax_iqm.png" alt="smax" style="max-width: 100%; height: auto;">
     </div>
-    <div class="item">
+    <div style="flex: 1 1 calc(33.333% - 20px); text-align: center; box-sizing: border-box;">
         <h4>Overcooked</h4>
-        <img src="docs/overcooked_iqm.png" alt="overcooked">
+        <img src="docs/overcooked_iqm.png" alt="overcooked" style="max-width: 100%; height: auto;">
     </div>
 </div>
 
@@ -138,7 +121,9 @@ Most scripts include a ```tune``` function to perform hyperparameter tuning. You
 If you use PureJaxRL in your work, please cite the following paper:
 
 ```
-@misc{gallici2024simplifyingdeeptemporaldifference,
+@misc{gal
+
+lici2024simplifyingdeeptemporaldifference,
       title={Simplifying Deep Temporal Difference Learning}, 
       author={Matteo Gallici and Mattie Fellows and Benjamin Ellis and Bartomeu Pou and Ivan Masmitja and Jakob Nicolaus Foerster and Mario Martin},
       year={2024},
