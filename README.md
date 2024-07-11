@@ -1,4 +1,3 @@
-
 # Exploring Q-Learning in Pure-GPU Setting
 
 [<img src="https://img.shields.io/badge/license-Apache2.0-blue.svg">](https://github.com/luchris429/purejaxrl/LICENSE)
@@ -69,7 +68,7 @@ When combined with an RNN network, PQN offers a more sample-efficient baseline c
 
 <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px;">
     <div style="flex: 1 1 calc(33.333% - 20px); text-align: center; box-sizing: border-box;">
-        <img src="docs/craftax_rnn.png" alt="craftax_rnn" style="max-width: 40%;">
+        <img src="docs/craftax_rnn.png" alt="craftax_rnn" style="max-width: 40%; height: auto;">
     </div>
 </div>
 
@@ -112,7 +111,9 @@ python purejaxql/pqn_gymnax.py +alg=pqn_cartpole HYP_TUNE=True
 
 Check [```purejaxql/config/config.yaml```](purejaxql/config/config.yaml) for the default configuration. It allows you to set up WANDB, seed, and choose the number of parallel seeds per experiment.
 
-The algorithm-environment specific configuration files are in [```purejaxql/config/alg```](purejaxql/config/alg).
+The algorithm-environment specific configuration files are in [```purejaxql/config/alg```
+
+](purejaxql/config/alg).
 
 Most scripts include a ```tune``` function to perform hyperparameter tuning. You'll need to set ```HYP_TUNE=True``` in the default config file to use it.
 
@@ -121,9 +122,7 @@ Most scripts include a ```tune``` function to perform hyperparameter tuning. You
 If you use PureJaxRL in your work, please cite the following paper:
 
 ```
-@misc{gal
-
-lici2024simplifyingdeeptemporaldifference,
+@misc{gallici2024simplifyingdeeptemporaldifference,
       title={Simplifying Deep Temporal Difference Learning}, 
       author={Matteo Gallici and Mattie Fellows and Benjamin Ellis and Bartomeu Pou and Ivan Masmitja and Jakob Nicolaus Foerster and Mario Martin},
       year={2024},
