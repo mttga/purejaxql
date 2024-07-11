@@ -28,17 +28,17 @@ With PQN and a single NVIDIA A40 (achieving similar performance to an RTX 3090),
     <td style="width: 33.33%; vertical-align: top; padding: 10px;">
       <h3>Cartpole</h3>
       <img src="docs/cart_pole_time.png" alt="Cartpole" width="300" style="max-width: 100%; display: block; margin: 0 auto;"/>
-      <h4><i>It takes a few seconds to train on simple tasks and also for training dozens of parallel seeds.</i></h4>
+      <h4><i>It takes a few seconds to train on simple tasks, also with dozens of parallel seeds.</i></h4>
     </td>
     <td style="width: 33.33%; vertical-align: top; padding: 10px;">
       <h3>Atari</h3>
       <img src="docs/pong_time_comparison.png" alt="Atari" width="300" style="max-width: 100%; display: block; margin: 0 auto;"/>
-      <h4><i>With PQN you can solve Pong in less than 5 minutes.</i></h4>
+      <h4><i>With PQN you can solve simple games like Pong in less than 5 minutes.</i></h4>
     </td>
     <td style="width: 33.33%; vertical-align: top; padding: 10px;">
       <h3>Craftax</h3>
       <img src="docs/craftax_buffer.png" alt="Craftax" width="300" style="max-width: 100%; display: block; margin: 0 auto;"/>
-      <h4><i>Training a Q-Learning agent in Craftax with PQN is much faster than using a replay buffer.</i></h4>
+      <h4><i>Training an agent in Craftax with PQN is faster than using a replay buffer.</i></h4>
     </td>
   </tr>
 </table>
@@ -71,7 +71,7 @@ Currently, after around 4 hours of training and 400M environment frames, PQN can
 When combined with an RNN network, PQN offers a more sample-efficient baseline compared to PPO. As an off-policy algorithm, PQN could be an interesting starting point for population-based training in Craftax!
 
 <div style="text-align: center;">
-  <img src="docs/craftax_rnn.png" alt="craftax_rnn" style="max-width: 40%;"/>
+  <img src="docs/craftax_rnn.png" alt="craftax_rnn" width="300" style="max-width: 40%;"/>
 </div>
 
 ### Multi-Agent (JaxMarl)
