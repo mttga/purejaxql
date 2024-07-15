@@ -1,6 +1,6 @@
 # Exploring Q-Learning in Pure-GPU Setting
 
-[<img src="https://img.shields.io/badge/license-Apache2.0-blue.svg">](https://github.com/luchris429/purejaxrl/LICENSE)
+[<img src="https://img.shields.io/badge/license-Apache2.0-blue.svg">](https://github.com/mttga/purejaxql/blob/main/LICENSE)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![arXiv](https://img.shields.io/badge/arXiv-2407.04811-b31b1b.svg)](https://arxiv.org/abs/2407.04811)
 
