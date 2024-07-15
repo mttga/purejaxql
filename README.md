@@ -152,3 +152,5 @@ The following repositories are related to pure-GPU RL training:
 - [JaxIRL](https://github.com/FLAIROx/jaxirl)
 - [Pgx](https://github.com/sotetsuk/pgx)
 - [Mava](https://github.com/instadeepai/Mava)
+- [XLand-MiniGrid](https://github.com/corl-team/xland-minigrid)
+- [Craftax](https://github.com/MichaelTMatthews/Craftax/tree/main)
