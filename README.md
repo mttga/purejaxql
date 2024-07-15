@@ -105,8 +105,14 @@ Steps:
 #### Useful commands:
 
 ```bash
-# Run Atari training with a specific game
+# cartpole
+python purejaxql/pqn_gymnax.py +alg=pqn_cartpole
+# train in atari with a specific game
 python purejaxql/pqn_atari.py +alg=pqn_atari alg.ENV_NAME=NameThisGame-v5
+# pqn rnn with craftax
+python purejaxql/pqn_rnn_craftax.py +alg=pqn_rnn_craftax
+# pqn-vdn in smax
+python purejaxql/pqn_vdn_rnn_jaxmarl.py +alg=pqn_vdn_rnn_smax
 # Perform hyper-parameter tuning
 python purejaxql/pqn_gymnax.py +alg=pqn_cartpole HYP_TUNE=True
 ```
