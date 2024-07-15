@@ -145,7 +145,7 @@ If you use PureJaxRL in your work, please cite the following paper:
 
 The following repositories are related to pure-GPU RL training:
 
-- [PureJaxRL](https://github.com/FLAIROx/JaxMARL)
+- [PureJaxRL](https://github.com/luchris429/purejaxrl)
 - [JaxMARL](https://github.com/FLAIROx/JaxMARL)
 - [Jumanji](https://github.com/instadeepai/jumanji)
 - [JAX-CORL](https://github.com/nissymori/JAX-CORL)
