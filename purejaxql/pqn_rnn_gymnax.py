@@ -586,7 +586,7 @@ def single_run(config):
             env_name.upper(),
             f"jax_{jax.__version__}",
         ],
-        name=f'{config["ALG_NAME"]}_{config["ENV_NAME"]}',
+        name=config.get("NAME", f'{config["ALG_NAME"]}_{config["ENV_NAME"]}'),
         config=config,
         mode=config["WANDB_MODE"],
     )
@@ -600,7 +600,10 @@ def single_run(config):
     print(f"Took {time.time()-t0} seconds to complete.")
 
     if config.get("SAVE_PATH", None) is not None:
-        from jaxmarl.wrappers.baselines import save_params
+        try:
+            from jaxmarl.wrappers.baselines import save_params
+        except ImportError:
+            from purejaxql.pqn_gymnax_flat import save_params
 
         model_state = outs["runner_state"][0]
         save_dir = os.path.join(config["SAVE_PATH"], env_name)
