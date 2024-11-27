@@ -485,12 +485,12 @@ def tune(default_config):
         for k, v in dict(wandb.config).items():
             config[k] = v
 
-            print("running experiment with params:", config)
-
-            rng = jax.random.PRNGKey(config["SEED"])
-            rngs = jax.random.split(rng, config["NUM_SEEDS"])
-            train_vjit = jax.jit(jax.vmap(make_train(config)))
-            outs = jax.block_until_ready(train_vjit(rngs))
+        print("running experiment with params:", config)
+        rng = jax.random.PRNGKey(config["SEED"])
+        rngs = jax.random.split(rng, config["NUM_SEEDS"])
+        train_vjit = jax.jit(jax.vmap(make_train(config)))
+        outs = jax.block_until_ready(train_vjit(rngs))
+        # return outs
 
     sweep_config = {
         "name": f"{alg_name}_{env_name}",
