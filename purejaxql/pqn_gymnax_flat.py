@@ -181,24 +181,23 @@ def train(
     # train
     rng, _rng = jax.random.split(rng)
 
-    update_step = partial(
-        _update_step,
-        network=network,
-        num_envs=num_envs,
-        eps_scheduler=eps_scheduler,
-        config=config,
-        env=env,
-        env_params=env_params,
-        original_rng=original_rng,
-        test_num_steps=test_num_steps,
-        test_num_envs=test_num_envs,
-    )
-
     runner_state = (train_state, expl_state, test_metrics, _rng)
     runner_state, metrics = jax.lax.scan(
-        update_step,
+        lambda runner_state, _input: _update_step(
+            runner_state,
+            _input,
+            network=network,
+            num_envs=num_envs,
+            eps_scheduler=eps_scheduler,
+            config=config,
+            env=env,
+            env_params=env_params,
+            original_rng=original_rng,
+            test_num_steps=test_num_steps,
+            test_num_envs=test_num_envs,
+        ),
         init=runner_state,
-        xs=None,
+        xs=jnp.arange(num_updates),
         length=num_updates,
     )
 
@@ -276,10 +275,10 @@ def _update_step(
     runner_state: tuple[
         CustomTrainState, tuple[jax.Array, TEnvState], Any, chex.PRNGKey
     ],
-    _update_step_index: int,
+    _update_step_index: jax.Array,
     network: Static[QNetwork],
     num_envs: Static[int],
-    eps_scheduler: Static[Callable[[int], float]],
+    eps_scheduler: Static[optax.Schedule],
     env: Static[Environment[TEnvState, TEnvParams]],
     env_params: TEnvParams,
     config: Static[Config],
