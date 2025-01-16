@@ -1,0 +1,30 @@
+# this is adapted from Atari configuration (with a slightly higher exploration eps), may get better results with some tuning
+ALG_NAME: "pqn"
+LR: 0.0005
+NUM_ENVS: 2048
+NUM_STEPS: 10
+TOTAL_TIMESTEPS: 5e7
+UPDATE_EPOCHS: 4
+NUM_MINIBATCHES: 4
+NORM_TYPE: "layer_norm"
+HIDDEN_SIZE: 256
+NUM_LAYERS: 2
+GAMMA: 0.99
+LAMBDA: 0.95
+CLIP_EPS: 0.2
+ENT_COEF: 0.0
+VF_COEF: 1.0
+MAX_GRAD_NORM: 0.5
+ACTIVATION: "relu"
+ANNEAL_LR: false
+NORMALIZE_ENV: true
+
+# env specific
+ENV_NAME: "ant"
+ENV_KWARGS: {}
+
+# evaluation
+TEST_DURING_TRAINING: True 
+TEST_INTERVAL: 0.05 # in terms of total updates
+TEST_NUM_ENVS: 128
+EPS_TEST: 0. # 0 for greedy policy
