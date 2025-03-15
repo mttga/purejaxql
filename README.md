@@ -93,7 +93,13 @@ When combined with Value Decomposition Networks, PQN is a strong baseline for mu
 
 ## 🚀 Usage (highly recommended with Docker)
 
-Steps:
+Install with pip:
+
+```bash
+pip install git+https://github.com/mttga/purejaxql
+```
+
+Install with Docker:
 
 1. Ensure you have Docker and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) properly installed.
 2. (Optional) Set your WANDB key in the [Dockerfile](docker/Dockerfile).
