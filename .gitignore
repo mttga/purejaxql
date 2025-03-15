@@ -11,3 +11,6 @@ __pycache__/
 wandb/
 outputs/
 models/
+
+**.npz
+**.safetensors
