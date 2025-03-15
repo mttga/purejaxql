@@ -96,7 +96,10 @@ When combined with Value Decomposition Networks, PQN is a strong baseline for mu
 Install with pip:
 
 ```bash
-pip install git+https://github.com/mttga/purejaxql
+# base environments, gymnax, craftax, jaxmarl
+pip install git+https://github.com/mttga/purejaxql[jax_envs]
+# atari
+pip install git+https://github.com/mttga/purejaxql[atari]
 ```
 
 Install with Docker:

@@ -1,0 +1,6 @@
+wandb/
+outputs/
+models/
+
+**.npz
+**.safetensors

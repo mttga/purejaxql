@@ -1,7 +1,6 @@
 docker build \
-    --build-arg REQUIREMENTS_FILE=requirements/requirements_atari.txt \
     --build-arg UID=$(id -u ${USER}) \
     --build-arg USERNAME=$(whoami) \
-    -f docker/Dockerfile \
+    -f docker/atari.Dockerfile \
     -t pqn-atari \
     .

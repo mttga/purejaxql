@@ -347,7 +347,7 @@ def make_train(config):
                     lambda _: test_metrics,
                     operand=None,
                 )
-                metrics.update({f"test_{k}": v for k, v in test_metrics.items()})
+                metrics.update({f"test/{k}": v for k, v in test_metrics.items()})
 
             # report on wandb if required
             if config["WANDB_MODE"] != "disabled":

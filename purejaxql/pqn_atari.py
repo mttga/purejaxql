@@ -559,7 +559,7 @@ def make_train(config):
 
             metrics.update({k: v.mean() for k, v in infos.items()})
             if config.get("TEST_DURING_TRAINING", False):
-                metrics.update({f"test_{k}": v.mean() for k, v in test_infos.items()})
+                metrics.update({f"test/{k}": v.mean() for k, v in test_infos.items()})
 
             # report on wandb if required
             if config["WANDB_MODE"] != "disabled":
