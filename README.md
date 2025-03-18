@@ -5,7 +5,7 @@
 [![blog](https://img.shields.io/badge/blog-link-purple)](https://mttga.github.io/posts/pqn/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-
+> 📝 PQN is accepted at ICRL 2025 as a Spotlight Paper.
 
 The goal of this project is to provide simple and lightweight scripts for Q-Learning baselines in various single-agent and multi-agent settings that can run effectively on pure-GPU environments. It follows the [cleanrl](https://github.com/vwxyzjn/cleanrl) philosophy of single-file scripts and is deeply inspired by [purejaxrl](https://github.com/luchris429/purejaxrl/tree/main), which aims to compile entire RL pipelines on the GPU using JAX.
 
@@ -151,14 +151,16 @@ Most scripts include a ```tune``` function to perform hyperparameter tuning. You
 If you use PureJaxRL in your work, please cite the following paper:
 
 ```
-@misc{gallici2024simplifyingdeeptemporaldifference,
-      title={Simplifying Deep Temporal Difference Learning}, 
-      author={Matteo Gallici and Mattie Fellows and Benjamin Ellis and Bartomeu Pou and Ivan Masmitja and Jakob Nicolaus Foerster and Mario Martin},
-      year={2024},
-      eprint={2407.04811},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG},
-      url={https://arxiv.org/abs/2407.04811}, 
+@article{Gallici25simplifying,
+    title={Simplifying Deep Temporal Difference Learning},
+    author={Matteo Gallici and Mattie Fellows and Benjamin Ellis
+     and Bartomeu Pou and Ivan Masmitja and Jakob Nicolaus Foerster
+      and Mario Martin},
+    year={2025}, 
+    eprint={2407.04811},
+    journal={The International Conference on Learning Representations (ICLR)},
+    primaryClass={cs.LG},
+    url={https://arxiv.org/abs/2407.04811},
 }
 ```
 
