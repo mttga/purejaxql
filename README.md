@@ -1,25 +1,28 @@
 # Exploring Q-Learning in Pure-GPU Setting
 
 [<img src="https://img.shields.io/badge/license-Apache2.0-blue.svg">](https://github.com/mttga/purejaxql/blob/main/LICENSE)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![arXiv](https://img.shields.io/badge/arXiv-2407.04811-b31b1b.svg)](https://arxiv.org/abs/2407.04811)
+[![blog](https://img.shields.io/badge/blog-link-purple)](https://mttga.github.io/posts/pqn/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-The goal of this project is to provide very simple and lightweight scripts for Q-Learning baselines in various single-agent and multi-agent settings that can run effectively on pure-GPU environments. It follows the [cleanrl](https://github.com/vwxyzjn/cleanrl) philosophy of single-file scripts and is deeply inspired by [purejaxrl](https://github.com/luchris429/purejaxrl/tree/main), which aims to compile entire RL pipelines on the GPU using JAX.
 
-The main algorithm currently supported is the [Parallelised Q-Network (PQN)](https://arxiv.org/abs/2407.04811), developed specifically to run effectively in a pure-GPU setting. The main features of PQN are:
-1. **Simplicity**: PQN is a very simple baseline, essentially an online Q-learner with vectorized environments and network normalization.
-2. **Speed**: PQN runs without a replay buffer and target networks, ensuring significant speed-ups and sample efficiency.
-3. **Stability**: PQN can use both batch and layer normalization to stabilize training.
-4. **Flexibility**: PQN is easily compatible with RNNs, Peng's $Q(\lambda)$, and multi-agent tasks.
+
+The goal of this project is to provide simple and lightweight scripts for Q-Learning baselines in various single-agent and multi-agent settings that can run effectively on pure-GPU environments. It follows the [cleanrl](https://github.com/vwxyzjn/cleanrl) philosophy of single-file scripts and is deeply inspired by [purejaxrl](https://github.com/luchris429/purejaxrl/tree/main), which aims to compile entire RL pipelines on the GPU using JAX.
+
+The main algorithm currently supported is [Parallelised Q-Network (PQN)](https://arxiv.org/abs/2407.04811), developed to run effectively in a pure-GPU setting. The main features of PQN are:
+1. **Simplicity**: PQN is a simple baseline, essentially an online Q-learner with vectorized environments and network normalization.
+2. **Speed**: PQN runs without a replay buffer and target networks, resulting in significant speed-ups and improved sample efficiency.
+3. **Stability**: PQN utilizes both batch and layer normalization to enhance training stability.
+4. **Flexibility**: PQN is fully compatible with RNNs, $Q(\lambda)$, and multi-agent tasks.
 
 ## 🔥 Quick Stats
 
-With PQN and a single NVIDIA A40 (achieving similar performance to an RTX 3090), you can:
+Using PQN on a single NVIDIA A40 (which has performance comparable to an RTX 3090), you can:
 - 🦿 Train agents for simple tasks like CartPole and Acrobot in a few seconds.
   - Train thousands of seeds in parallel in a few minutes.
   - Train MinAtar in less than a minute, and complete 10 parallel seeds in less than 5 minutes.
-- 🕹️ Train an Atari agent for 200M frames in one hour (with environments running on a single CPU using [Envpool](https://github.com/sail-sg/envpool), tested on an AMD EPYC 7513 32-Core Processor).
-  - Solve simple games like Pong in a few minutes and less than 10M timesteps.
+- 🕹️ Train an Atari agent for 200M frames within an hour (with environments running on a single CPU using [Envpool](https://github.com/sail-sg/envpool), tested on an AMD EPYC 7513 32-Core Processor).
+  - Solve simple games like Pong in just a few minutes and under 10M timesteps.
 - 👾 Train a Q-Learning agent in Craftax much faster than when using a replay buffer.
 - 👥 Train a strong Q-Learning baseline with VDN in multi-agent tasks.
 
@@ -47,7 +50,7 @@ With PQN and a single NVIDIA A40 (achieving similar performance to an RTX 3090),
 
 ### Atari
 
-Currently, after around 4 hours of training and 400M environment frames, PQN can achieve a median score similar to the original Rainbow paper in ALE, reaching scores higher than humans in 40 of the 57 Atari games. While this is far from the latest SOTA in ALE, it can serve as a good starting point for faster research in ALE.
+Currently, after approximately 4 hours of training and processing 400M environment frames, PQN can achieve a median score similar to the original Rainbow paper in ALE, achieving scores surpassing human performance in 40 out of 57 Atari games. Although this does not represent the latest state-of-the-art in ALE, it serves as a solid foundation for accelerating research in the field.
 
 <table style="width: 100%; text-align: center; border-collapse: collapse;">
   <tr>
@@ -68,7 +71,7 @@ Currently, after around 4 hours of training and 400M environment frames, PQN can
 
 ### Craftax
 
-When combined with an RNN network, PQN offers a more sample-efficient baseline compared to PPO. As an off-policy algorithm, PQN could be an interesting starting point for population-based training in Craftax!
+When integrated with an RNN, PQN offers a more sample-efficient baseline compared to PPO. As an off-policy algorithm, PQN presents an intriguing starting point for population-based training in Craftax!
 
 <div style="text-align: center; margin: auto;">
   <img src="docs/craftax_rnn.png" alt="craftax_rnn" width="300" style="max-width: 100%;"/>
@@ -76,7 +79,7 @@ When combined with an RNN network, PQN offers a more sample-efficient baseline c
 
 ### Multi-Agent (JaxMarl)
 
-When combined with Value Decomposition Networks, PQN is a strong baseline for multi-agent tasks.
+Paired with Value Decomposition Networks, PQN serves as a strong baseline for multi-agent tasks.
 
 <table style="width: 100%; margin: auto; text-align: center; border-collapse: collapse;">
   <tr>
@@ -102,9 +105,18 @@ pip install git+https://github.com/mttga/purejaxql[jax_envs]
 pip install git+https://github.com/mttga/purejaxql[atari]
 ```
 
+or clone the repo and install locally in dev mode:
+
+```bash
+# base environments, gymnax, craftax, jaxmarl
+pip install -e .[jax_envs]
+# atari
+pip install -e .[atari]
+```
+
 Install with Docker:
 
-1. Ensure you have Docker and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) properly installed.
+1. Make sure Docker and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) are properly installed.
 2. (Optional) Set your WANDB key in the [Dockerfile](docker/Dockerfile).
 3. Build with `bash docker/build.sh`.
 4. (Optional) Build the specific image for Atari (which uses different gym requirements): `bash docker/build_atari.sh`.
@@ -128,7 +140,7 @@ python purejaxql/pqn_gymnax.py +alg=pqn_cartpole HYP_TUNE=True
 
 ## Experiment Configuration
 
-Check [```purejaxql/config/config.yaml```](purejaxql/config/config.yaml) for the default configuration. It allows you to set up WANDB, seed, and choose the number of parallel seeds per experiment.
+Refer to [```purejaxql/config/config.yaml```](purejaxql/config/config.yaml) for the default configuration, where you can configure WANDB, set the seed, and specify the number of parallel seeds per experiment.
 
 The algorithm-environment specific configuration files are in [```purejaxql/config/alg```](purejaxql/config/alg).
 
