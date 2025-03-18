@@ -28,8 +28,6 @@ import wandb
 
 # Reusing these from the `pqn_gymnax_flat` module.
 from purejaxql.pqn_gymnax_flat import Config as BaseConfig
-from purejaxql.pqn_gymnax_flat import save_params
-
 
 # Extend the base config to add the entries that are specific to this RNN version.
 class Config(BaseConfig, TypedDict):
@@ -943,6 +941,7 @@ def single_run(_config: dict):
     print(f"Took {time.time()-t0} seconds to complete.")
 
     if (save_path := config.get("SAVE_PATH")) is not None:
+        from purejaxql.utils.save_load import save_params
         model_state = outs["runner_state"][0]
         save_dir = Path(save_path) / env_name
         os.makedirs(save_dir, exist_ok=True)

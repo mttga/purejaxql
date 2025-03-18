@@ -49,7 +49,7 @@ dependencies = [
 
 jax_envs = [
     "craftax>=1.4.2",
-    "jaxmarl>=0.0.4",
+    "jaxmarl==0.0.5",
     "gymnax==0.0.6"
 ]
 

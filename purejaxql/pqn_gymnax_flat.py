@@ -619,20 +619,6 @@ def eps_greedy_exploration(rng: chex.PRNGKey, q_vals: jax.Array, eps: jax.Array)
     return chosen_actions
 
 
-# Including this here to make this compatible with jaxmarl 0.0.4
-# (seems like those functions were removed or moved to a different place?)
-
-
-def save_params(params: dict, filename: str | os.PathLike) -> None:
-    flattened_dict = flatten_dict(params, sep=",")
-    save_file(flattened_dict, filename)  # type: ignore
-
-
-def load_params(filename: str | os.PathLike) -> dict:
-    flattened_dict = load_file(filename)
-    return unflatten_dict(flattened_dict, sep=",")
-
-
 def single_run(_config: dict):
     config: Config = {**_config, **_config["alg"]}  # type: ignore
 
@@ -662,7 +648,7 @@ def single_run(_config: dict):
     print(f"Took {time.perf_counter()-t0:.2f} seconds to complete.")
 
     if (save_path := config.get("SAVE_PATH")) is not None:
-        # todo: this import is failing:
+        from purejaxql.utils.save_load import save_params
         model_state = outs["runner_state"][0]
         save_dir = Path(save_path) / env_name
         os.makedirs(save_dir, exist_ok=True)
@@ -691,8 +677,6 @@ def tune(_default_config):
         wandb.init(project=default_config["PROJECT"])
 
         config = copy.deepcopy(default_config)
-        # TODO: Weird, why is this doing one training run per item in wandb.config?
-        # Is there only one key being tuned?
         for k, v in dict(wandb.config).items():
             config[k] = v
 

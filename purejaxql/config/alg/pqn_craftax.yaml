@@ -1,11 +1,11 @@
-ALG_NAME: "pqn_craftax_hs1024_epsstart1"
+ALG_NAME: "pqn_craftax"
 TOTAL_TIMESTEPS: 1e9
 TOTAL_TIMESTEPS_DECAY: 1e9 # will be used for decay functions, in case you want to test for less timesteps and keep decays same
 NUM_ENVS: 1024 # parallel environments
 NUM_STEPS: 1 # steps per environment in each update
-EPS_START: 1.0
+EPS_START: 0.1
 EPS_FINISH: 0.005
-EPS_DECAY: 0.1
+EPS_DECAY: 0.2
 NUM_MINIBATCHES: 1 # minibatches per epoch
 NUM_EPOCHS: 1 # minibatches per epoch
 NORM_INPUT: True

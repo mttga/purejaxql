@@ -126,8 +126,10 @@ def make_train(config, env):
         config["TOTAL_TIMESTEPS"] // config["NUM_STEPS"] // config["NUM_ENVS"]
     )
 
-    config["NUM_UPDATES_DECAY"] = (
-        config["TOTAL_TIMESTEPS_DECAY"] // config["NUM_STEPS"] // config["NUM_ENVS"]
+    eps_scheduler = optax.linear_schedule(
+        config["EPS_START"],
+        config["EPS_FINISH"],
+        config["EPS_DECAY"] * config["NUM_UPDATES"],
     )
 
     def get_greedy_actions(q_vals, valid_actions):
@@ -173,12 +175,6 @@ def make_train(config, env):
 
         original_seed = rng[0]
 
-        eps_scheduler = optax.linear_schedule(
-            config["EPS_START"],
-            config["EPS_FINISH"],
-            config["EPS_DECAY"] * config["NUM_UPDATES_DECAY"],
-        )
-
         # INIT ENV
         rng, _rng = jax.random.split(rng)
         wrapped_env = CTRolloutManager(
@@ -217,7 +213,7 @@ def make_train(config, env):
                 1e-10,
                 config["NUM_EPOCHS"]
                 * config["NUM_MINIBATCHES"]
-                * config["NUM_UPDATES_DECAY"],
+                * config["NUM_UPDATES"],
             )
 
             lr = lr_scheduler if config.get("LR_LINEAR_DECAY", False) else config["LR"]
@@ -254,7 +250,7 @@ def make_train(config, env):
                 ]  # (num_agents, 1 (dummy time), num_envs, obs_size)
                 _dones = batchify(last_dones)[
                     :, np.newaxis
-                ]  # (num_agents, 1 (dummy time), num_envs)
+                ]  # (num_agents, 1 (dummy time), num_envs, obs_size)
                 new_hs, q_vals = jax.vmap(network.apply, in_axes=(None, 0, 0, 0, None))(
                     {
                         "params": train_state.params,
@@ -316,7 +312,7 @@ def make_train(config, env):
             )  # update timesteps count
 
             # insert the transitions into the memory
-            memory_transitions = jax.tree_map(
+            memory_transitions = jax.tree_util.tree_map(
                 lambda x, y: jnp.concatenate([x[config["NUM_STEPS"] :], y], axis=0),
                 memory_transitions,
                 transitions,
@@ -367,7 +363,7 @@ def make_train(config, env):
                         _, targets = jax.lax.scan(
                             _get_target,
                             (lambda_returns, last_q),
-                            jax.tree_map(lambda x: x[:-1], (reward, q_vals, done)),
+                            jax.tree_util.tree_map(lambda x: x[:-1], (reward, q_vals, done)),
                             reverse=True,
                         )
                         targets = jnp.concatenate([targets, lambda_returns[np.newaxis]])
@@ -449,7 +445,7 @@ def make_train(config, env):
                 minibatches = jax.tree_util.tree_map(
                     lambda x: preprocess_transition(x, _rng),
                     memory_transitions,
-                )  # num_minibatches, num_steps+memory_window, num_agents, batch_size/num_minbatches, ...
+                )  # num_minibatches, num_steps+memory_window, num_agents, batch_size/num_minbatches, num_agents, ...
 
                 rng, _rng = jax.random.split(rng)
                 (train_state, rng), (loss, qvals) = jax.lax.scan(
@@ -471,7 +467,7 @@ def make_train(config, env):
                 "loss": loss.mean(),
                 "qvals": qvals.mean(),
             }
-            metrics.update(jax.tree_map(lambda x: x.mean(), infos))
+            metrics.update(jax.tree_util.tree_map(lambda x: x.mean(), infos))
 
             if config.get("TEST_DURING_TRAINING", True):
                 rng, _rng = jax.random.split(rng)
@@ -562,7 +558,7 @@ def make_train(config, env):
             step_state, (rewards, dones, infos) = jax.lax.scan(
                 _greedy_env_step, step_state, None, config["TEST_NUM_STEPS"]
             )
-            metrics = jax.tree_map(
+            metrics = jax.tree_util.tree_map(
                 lambda x: jnp.nanmean(
                     jnp.where(
                         infos["returned_episode"],
@@ -618,8 +614,7 @@ def make_train(config, env):
                 last_hs=hs,  # (num_agents, num_envs, hidden_size)
                 obs=batchify(last_obs),  # (num_agents, num_envs, obs_shape)
                 action=batchify(new_action),  # (num_agents, num_envs,)
-                reward=config.get("REW_SCALE", 1)
-                * reward["__all__"][np.newaxis],  # (1, num_envs,)
+                reward=reward["__all__"][np.newaxis],  # (1, num_envs,)
                 done=new_done["__all__"][np.newaxis],  # (1, num_envs,)
                 last_done=batchify(last_dones),  # (1, num_envs,)
                 avail_actions=batchify(
@@ -721,7 +716,7 @@ def single_run(config):
         )
 
         for i, rng in enumerate(rngs):
-            params = jax.tree_map(lambda x: x[i], model_state.params)
+            params = jax.tree_util.tree_map(lambda x: x[i], model_state.params)
             save_path = os.path.join(
                 save_dir,
                 f'{alg_name}_{env_name}_seed{config["SEED"]}_vmap{i}.safetensors',
@@ -771,6 +766,13 @@ def tune(default_config):
                     0.00005,
                 ]
             },
+            "NUM_ENVS": {"values": [8, 32, 64, 128]},
+            "NUM_STEPS": {"values": [8, 16, 24, 32]},
+            "GAMMA": {"values": [0.99, 0.9]},
+            "LAMBDA": {"values": [0, 0.3, 0.5, 0.7, 0.9]},
+            "EPS_FINISH": {"values": [0.01, 0.05, 0.1]},
+            "NORM_TYPE": {"values": ["layer_norm", "batch_norm"]},
+            "NUM_MINIBATCHES": {"values": [1, 2, 4, 8, 16]},
         },
     }
 

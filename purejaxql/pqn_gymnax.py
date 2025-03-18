@@ -453,6 +453,7 @@ def single_run(config):
     print(f"Took {time.time()-t0} seconds to complete.")
 
     if config.get("SAVE_PATH", None) is not None:
+        from purejaxql.utils.save_load import save_params
         model_state = outs["runner_state"][0]
         save_dir = os.path.join(config["SAVE_PATH"], env_name)
         os.makedirs(save_dir, exist_ok=True)
@@ -517,16 +518,6 @@ def tune(default_config):
         sweep_config, entity=default_config["ENTITY"], project=default_config["PROJECT"]
     )
     wandb.agent(sweep_id, wrapped_make_train, count=1000)
-
-
-def save_params(params: dict, filename: str | os.PathLike) -> None:
-    flattened_dict = flatten_dict(params, sep=",")
-    save_file(flattened_dict, filename)  # type: ignore
-
-
-def load_params(filename: str | os.PathLike) -> dict:
-    flattened_dict = load_file(filename)
-    return unflatten_dict(flattened_dict, sep=",")
 
 
 @hydra.main(version_base=None, config_path="./config", config_name="config")
