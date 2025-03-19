@@ -258,7 +258,7 @@ def make_train(config):
 
             if config.get("TEST_DURING_TRAINING", False):
                 # remove testing envs
-                transitions = jax.tree_map(
+                transitions = jax.tree_util.tree_map(
                     lambda x: x[:, : -config["TEST_ENVS"]], transitions
                 )
 
@@ -295,7 +295,7 @@ def make_train(config):
                 _, targets = jax.lax.scan(
                     _get_target,
                     (lambda_returns, last_q),
-                    jax.tree_map(lambda x: x[:-1], (reward, q_vals, done)),
+                    jax.tree_util.tree_map(lambda x: x[:-1], (reward, q_vals, done)),
                     reverse=True,
                 )
                 targets = jnp.concatenate([targets, lambda_returns[np.newaxis]])
@@ -356,7 +356,7 @@ def make_train(config):
                 minibatches = jax.tree_util.tree_map(
                     lambda x: preprocess_transition(x, _rng), transitions
                 )  # num_actors*num_envs (batch_size), ...
-                targets = jax.tree_map(
+                targets = jax.tree_util.tree_map(
                     lambda x: preprocess_transition(x, _rng), lambda_targets
                 )
 
@@ -375,9 +375,9 @@ def make_train(config):
             train_state = train_state.replace(n_updates=train_state.n_updates + 1)
 
             if config.get("TEST_DURING_TRAINING", False):
-                test_infos = jax.tree_map(lambda x: x[:, -config["TEST_ENVS"] :], infos)
-                infos = jax.tree_map(lambda x: x[:, : -config["TEST_ENVS"]], infos)
-                infos.update({"test_" + k: v for k, v in test_infos.items()})
+                test_infos = jax.tree_util.tree_map(lambda x: x[:, -config["TEST_ENVS"] :], infos)
+                infos = jax.tree_util.tree_map(lambda x: x[:, : -config["TEST_ENVS"]], infos)
+                infos.update({"test/" + k: v for k, v in test_infos.items()})
 
             metrics = {
                 "env_step": train_state.timesteps,

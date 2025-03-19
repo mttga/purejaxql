@@ -258,7 +258,7 @@ def make_train(config):
             _, targets = jax.lax.scan(
                 _get_target,
                 (lambda_returns, last_q),
-                jax.tree_map(lambda x: x[:-1], transitions),
+                jax.tree_util.tree_map(lambda x: x[:-1], transitions),
                 reverse=True,
             )
             lambda_targets = jnp.concatenate((targets, lambda_returns[np.newaxis]))
@@ -337,7 +337,7 @@ def make_train(config):
                 minibatches = jax.tree_util.tree_map(
                     lambda x: preprocess_transition(x, _rng), transitions
                 )  # num_actors*num_envs (batch_size), ...
-                targets = jax.tree_map(
+                targets = jax.tree_util.tree_map(
                     lambda x: preprocess_transition(x, _rng), lambda_targets
                 )
 
@@ -361,7 +361,7 @@ def make_train(config):
                 "td_loss": loss.mean(),
                 "qvals": qvals.mean(),
             }
-            done_infos = jax.tree_map(
+            done_infos = jax.tree_util.tree_map(
                 lambda x: (x * infos["returned_episode"]).sum()
                 / infos["returned_episode"].sum(),
                 infos,
@@ -442,7 +442,7 @@ def make_train(config):
                 _env_step, (env_state, init_obs, _rng), None, config["TEST_NUM_STEPS"]
             )
             # return mean of done infos
-            done_infos = jax.tree_map(
+            done_infos = jax.tree_util.tree_map(
                 lambda x: (x * infos["returned_episode"]).sum()
                 / infos["returned_episode"].sum(),
                 infos,
@@ -509,7 +509,7 @@ def single_run(config):
         )
 
         for i, rng in enumerate(rngs):
-            params = jax.tree_map(lambda x: x[i], model_state.params)
+            params = jax.tree_util.tree_map(lambda x: x[i], model_state.params)
             save_path = os.path.join(
                 save_dir,
                 f'{alg_name}_{env_name}_seed{config["SEED"]}_vmap{i}.safetensors',
@@ -542,7 +542,7 @@ def tune(default_config):
         "name": f"{alg_name}_{env_name}",
         "method": "bayes",
         "metric": {
-            "name": "test_returned_episode_returns",
+            "name": "returned_episode_returns",
             "goal": "maximize",
         },
         "parameters": {
