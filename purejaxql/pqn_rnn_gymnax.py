@@ -277,7 +277,7 @@ def make_train(config):
             )  # update timesteps count
 
             # insert the transitions into the memory
-            memory_transitions = jax.tree_map(
+            memory_transitions = jax.tree_util.tree_map(
                 lambda x, y: jnp.concatenate([x[config["NUM_STEPS"] :], y], axis=0),
                 memory_transitions,
                 transitions,
@@ -321,7 +321,7 @@ def make_train(config):
                         _, targets = jax.lax.scan(
                             _get_target,
                             (lambda_returns, last_q),
-                            jax.tree_map(lambda x: x[:-1], (reward, q_vals, done)),
+                            jax.tree_util.tree_map(lambda x: x[:-1], (reward, q_vals, done)),
                             reverse=True,
                         )
                         targets = jnp.concatenate([targets, lambda_returns[np.newaxis]])
@@ -489,7 +489,7 @@ def make_train(config):
                 _greedy_env_step, step_state, None, config["TEST_NUM_STEPS"]
             )
             # return mean of done infos
-            done_infos = jax.tree_map(
+            done_infos = jax.tree_util.tree_map(
                 lambda x: jnp.nanmean(
                     jnp.where(
                         infos["returned_episode"],
@@ -613,7 +613,7 @@ def single_run(config):
         )
 
         for i, rng in enumerate(rngs):
-            params = jax.tree_map(lambda x: x[i], model_state.params)
+            params = jax.tree_util.tree_map(lambda x: x[i], model_state.params)
             save_path = os.path.join(
                 save_dir,
                 f'{alg_name}_{env_name}_seed{config["SEED"]}_vmap{i}.safetensors',
@@ -646,7 +646,7 @@ def tune(default_config):
         "name": f"{alg_name}_{env_name}",
         "method": "bayes",
         "metric": {
-            "name": "test_returned_episode_returns",
+            "name": "returned_episode_returns",
             "goal": "maximize",
         },
         "parameters": {

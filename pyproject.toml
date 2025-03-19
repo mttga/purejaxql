@@ -26,10 +26,10 @@ classifiers = [
 dependencies = [
     "jax>=0.4.16.0",
     "jaxlib>=0.4.16.0",
-    "flax==0.7.4",
-    "chex==0.1.84",
-    "optax==0.1.7",
-    "safetensors==0.4.2",
+    "flax>=0.7.4",
+    "chex>=0.1.84",
+    "optax>=0.1.7",
+    "safetensors>=0.4.2",
     "wandb",
     "pytest",
     "pygame",
@@ -39,9 +39,7 @@ dependencies = [
     "omegaconf>=2.3.0",
     "matplotlib>=3.8.3",
     "pillow>=10.2.0",
-    "pettingzoo>=1.24.3",
     "tqdm>=4.66.0",
-    "scipy<=1.12",
 ]
 
 
@@ -49,7 +47,7 @@ dependencies = [
 
 jax_envs = [
     "craftax>=1.4.2",
-    "jaxmarl==0.0.5",
+    "jaxmarl>=0.0.5",
     "gymnax==0.0.6"
 ]
 

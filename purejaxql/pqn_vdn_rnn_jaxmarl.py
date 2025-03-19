@@ -479,7 +479,7 @@ def make_train(config, env):
                     lambda _: test_state,
                     operand=None,
                 )
-                metrics.update({"test_" + k: v for k, v in test_state.items()})
+                metrics.update({"test/" + k: v for k, v in test_state.items()})
 
             # report on wandb if required
             if config["WANDB_MODE"] != "disabled":
@@ -753,7 +753,7 @@ def tune(default_config):
         "name": f"{alg_name}_{env_name}",
         "method": "bayes",
         "metric": {
-            "name": "test_returned_episode_returns",
+            "name": "returned_episode_returns",
             "goal": "maximize",
         },
         "parameters": {
