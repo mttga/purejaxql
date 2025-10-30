@@ -1,0 +1,42 @@
+ALG_NAME: "pqn"
+
+TOTAL_TIMESTEPS: 1e8
+NUM_ENVS: 4096
+NUM_STEPS: 128
+NUM_EPOCHS: 4
+NUM_MINIBATCHES: 128
+ACTOR_UPDATE_FREQ: 1
+
+ACTOR_HIDDEN_SIZES: [256, 128]
+CRITIC_HIDDEN_SIZES: [1024, 1024]
+ACTOR_INIT_SCALE: 1.0
+CRITIC_INIT_SCALE: 1.0
+NUM_CRITICS: 1
+NORM_TYPE: "layer_norm"
+ACTIVATION: "relu"
+NORM_INPUT: False #  normalize the input with batch norm
+NORMALIZE_OBS: True # normalize the observation with running mean and std
+NORMALIZE_REWARD: True # normalize the reward with running std of returns
+USE_QLAMBDA: True
+
+ANNEAL_LR: False
+LR_START: 0.0005
+LR_END: 0.00001
+LR_DECAY: 1.0
+GAMMA: 0.97 # 0.95 for PandaPickCube, PandaPickCubeOrientation, 
+LAMBDA: 0.99 # 0.5 for PandaPickCube, PandaPickCubeOrientation
+
+NOISE_DECAY: 1.0 # percentage in terms of total updates
+NOISE_START: 1.0
+NOISE_FINISH: 0.6
+THRESHOLD: 0.1
+PENALTY_COEFF: 50.0  # e.g., 1.
+MAX_GRAD_NORM: 1.0
+
+# env specific
+ENV_NAME: "PandaPickCube"
+ENV_KWARGS: {}
+
+# evaluation
+TEST_DURING_TRAINING: True 
+TEST_INTERVAL: 0.1 # in terms of total updates, 0.1 will test 10 times during training

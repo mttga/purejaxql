@@ -10,7 +10,8 @@ __pycache__/
 *-checkpoint.py
 wandb/
 outputs/
-models/
+models*/
+renders*/
 
 **.npz
 **.safetensors

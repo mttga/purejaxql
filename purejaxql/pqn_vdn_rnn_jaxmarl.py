@@ -1,3 +1,5 @@
+# this requires to install jaxmarl (not installed by default in the PQN docker image)
+# we reccomend to use PQN with the original jaxmarl codebase and image: https://github.com/FLAIROx/JaxMARL/tree/main/baselines/QLearning
 import os
 import copy
 import jax
@@ -354,16 +356,20 @@ def make_train(config, env):
                             )
                             lambda_returns = (1 - done) * lambda_returns + done * reward
                             next_q = jnp.max(q, axis=-1)
-                            next_q = jnp.sum(next_q, axis=0) # sum over agents
+                            next_q = jnp.sum(next_q, axis=0)  # sum over agents
                             return (lambda_returns, next_q), lambda_returns
 
-                        lambda_returns = reward[-1] + config["GAMMA"] * (1 - done[-1]) * last_q
+                        lambda_returns = (
+                            reward[-1] + config["GAMMA"] * (1 - done[-1]) * last_q
+                        )
                         last_q = jnp.max(q_vals[-1], axis=-1)
-                        last_q = jnp.sum(last_q, axis=0) # sum over agents
+                        last_q = jnp.sum(last_q, axis=0)  # sum over agents
                         _, targets = jax.lax.scan(
                             _get_target,
                             (lambda_returns, last_q),
-                            jax.tree_util.tree_map(lambda x: x[:-1], (reward, q_vals, done)),
+                            jax.tree_util.tree_map(
+                                lambda x: x[:-1], (reward, q_vals, done)
+                            ),
                             reverse=True,
                         )
                         targets = jnp.concatenate([targets, lambda_returns[np.newaxis]])
@@ -387,7 +393,7 @@ def make_train(config, env):
 
                         # lambda returns are computed using NUM_STEPS as the horizon, and optimizing from t=0 to NUM_STEPS-1
                         last_q = valid_q_vals[-1].max(axis=-1)
-                        last_q = last_q.sum(axis=0) # sum over agents
+                        last_q = last_q.sum(axis=0)  # sum over agents
                         target = _compute_targets(
                             last_q,  # q_vals at t=NUM_STEPS-1
                             valid_q_vals[:-1],
