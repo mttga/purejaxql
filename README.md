@@ -115,25 +115,23 @@ This is achieved thanks to an actor-critic extension in DDPG style of the origin
 
 Read more at this [blog page](https://mttga.github.io/posts/pqn_continuous/)!
 
-<table style="width: 100%; text-align: center; border-collapse: collapse;">  
-  <tr>  
-    <td style="width: 33.33%; vertical-align: top; padding: 10px;">  
-      <h3>DM Suite</h3>  
-      <img src="docs/iqm_dmsuite.png" alt="Cartpole" width="300" style="max-width: 100%; display: block; margin: 0 auto;"/>  
-      <i>CartPole, Walker, Cheetah, Hopper, ...</i>  
-    </td>  
-    <td style="width: 33.33%; vertical-align: top; padding: 10px;">  
-      <h3>Locomotion</h3>  
-      <img src="docs/iqm_locomotion.png" alt="Atari" width="300" style="max-width: 100%; display: block; margin: 0 auto;"/>  
-      <i>Unitree Go1, H1/G1, Booster T1, Berkeley Humanoid, ...</i>  
-    </td>  
-    <td style="width: 33.33%; vertical-align: top; padding: 10px;">  
-      <h3>Manipulation</h3>  
-      <img src="docs/iqm_manipulation.png" alt="Craftax" width="300" style="max-width: 100%; display: block; margin: 0 auto;"/>  
-      <i>Franka Emika Panda, Robotiq gripper, ...</i>  
-    </td>  
-  </tr>  
-</table> 
+
+<table style="width: 100%; text-align: center; border-collapse: collapse;">
+  <tr>
+    <td style="width: 33.33%; vertical-align: top; padding: 10px;">
+      <h4>DM Suite</h4>
+      <img src="docs/iqm_dmsuite.png" alt="DMSuite" width="300" style="max-width: 100%; display: block; margin: 0 auto;"/>
+    </td>
+    <td style="width: 33.33%; vertical-align: top; padding: 10px;">
+      <h4>Locomotion</h4>
+      <img src="docs/iqm_locomotion.png" alt="Locomotion" width="300" style="max-width: 100%; display: block; margin: 0 auto;"/>
+    </td>
+    <td style="width: 33.33%; vertical-align: top; padding: 10px;">
+      <h4>Manipulation</h4>
+      <img src="docs/iqm_manipulation.png" alt="Manipulation" width="300" style="max-width: 100%; display: block; margin: 0 auto;"/>
+    </td>
+  </tr>
+</table>
 
 
 
