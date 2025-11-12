@@ -1,6 +1,6 @@
 ALG_NAME: "pqn"
 
-TOTAL_TIMESTEPS: 1e8
+TOTAL_TIMESTEPS: 2e9
 NUM_ENVS: 4096
 NUM_STEPS: 128
 NUM_EPOCHS: 4
@@ -23,12 +23,15 @@ ANNEAL_LR: False
 LR_START: 0.0005
 LR_END: 0.00001
 LR_DECAY: 1.0
-GAMMA: 0.97 # 0.95 for PandaPickCube, PandaPickCubeOrientation, 
+GAMMA: 0.97 # 0.95 for PandaPickCube, PandaPickCubeOrientation 
 LAMBDA: 0.99 # 0.5 for PandaPickCube, PandaPickCubeOrientation
 
+# exploration
 NOISE_DECAY: 1.0 # percentage in terms of total updates
 NOISE_START: 1.0
 NOISE_FINISH: 0.6
+
+# regularization
 THRESHOLD: 0.1
 PENALTY_COEFF: 50.0  # e.g., 1.
 MAX_GRAD_NORM: 1.0
@@ -40,3 +43,4 @@ ENV_KWARGS: {}
 # evaluation
 TEST_DURING_TRAINING: True 
 TEST_INTERVAL: 0.1 # in terms of total updates, 0.1 will test 10 times during training
+TEST_NUM_ENVS: # if null, will be set to NUM_ENVS - can be set to a smaller number for faster eval, but might crash on some envs

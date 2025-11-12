@@ -17,7 +17,6 @@ ACTIVATION: "relu"
 NORM_INPUT: False #  normalize the input with batch norm
 NORMALIZE_OBS: True # normalize the observation with running mean and std
 NORMALIZE_REWARD: True # normalize the reward with running std of returns
-USE_TARGET_CRITIC: False
 USE_QLAMBDA: True
 
 ANNEAL_LR: True
@@ -27,9 +26,12 @@ LR_DECAY: 1.0
 GAMMA: 0.95 # 0.97 for ApolloJoystickFlatTerrain, BarkourJoystick, Op3Joystick, T1JoystickRoughTerrain
 LAMBDA: 0.99
 
+# exploration
 NOISE_DECAY: 0.9 # percentage in terms of total updates
 NOISE_START: 1.0
 NOISE_FINISH: 0.2
+
+# regularization
 THRESHOLD: 0.15
 PENALTY_COEFF: 50.0  # e.g., 1.
 MAX_GRAD_NORM: 1.0
@@ -41,3 +43,4 @@ ENV_KWARGS: {}
 # evaluation
 TEST_DURING_TRAINING: True 
 TEST_INTERVAL: 0.1 # in terms of total updates, 0.1 will test 10 times during training
+TEST_NUM_ENVS:  # if null, will be set to NUM_ENVS - can be set to a smaller number for faster eval, but might crash on some envs

@@ -8,12 +8,22 @@ from typing import Optional, Tuple, Union, Any
 from gymnax.environments import environment, spaces
 from brax import envs
 from brax.envs.wrappers.training import EpisodeWrapper, AutoResetWrapper
+from mujoco_playground import registry
+from mujoco_playground._src.wrapper import Wrapper as PlaygroundWrapper
+from mujoco_playground._src.wrapper import wrap_for_brax_training
 
 
 def get_original_state(state):
     if hasattr(state, "env_state"):
         return get_original_state(state.env_state)
     return state
+
+
+def nan_warning(x, name="value"):
+    if np.isnan(x).any():
+        print(f"Warning: {name} contains nan values")
+    if np.isinf(x).any():
+        print(f"Warning: {name} contains inf values")
 
 
 class GymnaxWrapper(object):
@@ -151,13 +161,8 @@ class BraxGymnaxWrapper:
         )
 
 
-from mujoco_playground import registry
-from mujoco_playground._src.wrapper import Wrapper as PlaygroundWrapper
-from mujoco_playground._src.wrapper import wrap_for_brax_training
-
-
 class PlaygroundVecGymnaxWrapper(GymnaxWrapper):
-    def __init__(self, env_name):
+    def __init__(self, env_name, custom_command=None):
         env_config = registry.get_default_config(env_name)
         env = registry.load(env_name, env_config)
         self.env_config = env_config
@@ -175,10 +180,16 @@ class PlaygroundVecGymnaxWrapper(GymnaxWrapper):
             print("Env has privileged state.")
         else:
             self.privileged_state = False
+        self.custom_command = custom_command  # used for locomotion rendering
 
     @partial(jax.jit, static_argnums=(0,))
     def reset(self, key, params=None):
         state = self._env.reset(key)
+
+        # inject custom command if provided (for rendering purposes)
+        if self.custom_command is not None:
+            state.info["command"] = state.info["command"].at[:].set(self.custom_command)
+
         if self.privileged_state:
             obs = {"actor": state.obs["state"], "critic": state.obs["privileged_state"]}
         else:
@@ -196,6 +207,10 @@ class PlaygroundVecGymnaxWrapper(GymnaxWrapper):
         else:
             obs = {"actor": next_state.obs, "critic": next_state.obs}
         reward = next_state.reward
+        jax.debug.callback(nan_warning, reward, name="reward")
+        reward = jnp.where(
+            jnp.isnan(reward), 0.0, reward
+        )  # some envs might produce NaN rewards
         done = next_state.done > 0.5
         infos = {}
         return obs, next_state, reward, done, infos

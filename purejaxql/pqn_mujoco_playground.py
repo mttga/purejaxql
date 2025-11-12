@@ -40,15 +40,17 @@ class Actor(nn.Module):
             activation = nn.tanh
 
         if self.norm_input:
-            x = nn.BatchNorm(use_running_average=not train)(x)
+            x = nn.BatchNorm(use_running_average=not train, epsilon=1e-5)(x)
         else:
             # dummy normalize input for global compatibility
-            x_dummy = nn.BatchNorm(use_running_average=not train)(x)
+            x_dummy = nn.BatchNorm(use_running_average=not train, epsilon=1e-5)(x)
 
         if self.norm_type == "layer_norm":
-            normalize = lambda x: nn.LayerNorm()(x)
+            normalize = lambda x: nn.LayerNorm(epsilon=1e-6)(x)
         elif self.norm_type == "batch_norm":
-            normalize = lambda x: nn.BatchNorm(use_running_average=not train)(x)
+            normalize = lambda x: nn.BatchNorm(
+                use_running_average=not train, epsilon=1e-5
+            )(x)
         else:
             normalize = lambda x: x
 
@@ -78,15 +80,17 @@ class Critic(nn.Module):
         x = jnp.concatenate([x, action], axis=-1)
 
         if self.norm_input:
-            x = nn.BatchNorm(use_running_average=not train)(x)
+            x = nn.BatchNorm(use_running_average=not train, epsilon=1e-5)(x)
         else:
             # dummy normalize input for global compatibility
-            x_dummy = nn.BatchNorm(use_running_average=not train)(x)
+            x_dummy = nn.BatchNorm(use_running_average=not train, epsilon=1e-5)(x)
 
         if self.norm_type == "layer_norm":
-            normalize = lambda x: nn.LayerNorm()(x)
+            normalize = lambda x: nn.LayerNorm(epsilon=1e-6)(x)
         elif self.norm_type == "batch_norm":
-            normalize = lambda x: nn.BatchNorm(use_running_average=not train)(x)
+            normalize = lambda x: nn.BatchNorm(
+                use_running_average=not train, epsilon=1e-5
+            )(x)
         else:
             normalize = lambda x: x
 
@@ -155,7 +159,11 @@ def make_train(config):
 
     if config.get("TEST_DURING_TRAINING", True):
         config["TEST_NUM_STEPS"] = env.episode_length
-        config["TEST_NUM_ENVS"] = config["NUM_ENVS"]
+        config["TEST_NUM_ENVS"] = (
+            config["TEST_NUM_ENVS"]
+            if config["TEST_NUM_ENVS"] is not None
+            else config["NUM_ENVS"]
+        )
         print("Test num steps:", config["TEST_NUM_STEPS"])
         print("Test num envs:", config["TEST_NUM_ENVS"])
 
@@ -302,7 +310,6 @@ def make_train(config):
                 obsv, env_state, reward, done, info = env.step(
                     rng_step, env_state, action, env_params
                 )
-                reward = reward
                 transition = Transition(
                     done,
                     original_action,
@@ -666,6 +673,11 @@ def make_train(config):
                                 for k, v in metrics.items()
                             }
                         )
+                    for k, v in metrics.items():
+                        if np.isnan(v):
+                            print(f"Warning: {k} contains NaN values")
+                        if np.isinf(v):
+                            print(f"Warning: {k} contains Inf values")
                     wandb.log(metrics)
 
                 jax.debug.callback(callback, metrics, original_rng)
