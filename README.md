@@ -115,6 +115,8 @@ This is achieved thanks to an actor-critic extension in DDPG style of the origin
 
 Read more at this [blog page](https://mttga.github.io/posts/pqn_continuous/)!
 
+To render the trained policies, check [this script](scripts/mujoco_playground_render.py).
+
 
 <table style="width: 100%; text-align: center; border-collapse: collapse;">
   <tr>
